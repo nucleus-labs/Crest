@@ -1,10 +1,12 @@
+
 use clap::{command, Parser as Cli};
-use pest_consume::Parser as _;
+use pest::Parser as _;
 
 use std::ffi::OsString;
 use std::fs::read_to_string;
 
-use peacock_crest::parse::{CssParser, Rule};
+// use peacock_crest::parse::{CssParser, Rule, gen_token};
+use peacock_crest as crest;
 
 #[derive(Cli)]
 #[command(
@@ -19,18 +21,13 @@ struct ValidationArgs {
     source_path: String,
 }
 
-fn main() -> Result<(), pest_consume::Error<Rule>> {
+fn main() {
     let arguments = ValidationArgs::parse();
     let path = OsString::from(arguments.source_path);
     let source = read_to_string(path).unwrap();
 
-    let parsed = CssParser::parse(Rule::Css, source.as_str())?;
-    let sheet_node = parsed.single()?;
-    let stylesheet = CssParser::Css(sheet_node)?;
-
-    for rule in stylesheet.iter() {
-        println!("{rule:?}");
+    let rules = crest::parse(source);
+    for _rule in rules.iter() {
+        // print!("{}, ", token.get_source().unwrap());
     }
-
-    Ok(())
 }

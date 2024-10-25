@@ -7,7 +7,7 @@ use pest::Parser;
 use std::collections::HashMap;
 use std::fs::read_to_string;
 
-use peacock_crest::values::{ValueType, PropertyList, RuleSet};
+use peacock_crest::css::types::{Generic, PropertyList, RuleSet};
 use peacock_crest::parse::{CssParser, Rule};
 
 macro_rules! collection {
