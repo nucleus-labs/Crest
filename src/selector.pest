@@ -1,0 +1,120 @@
+
+SELECTOR = { SELECTOR_COMPOUND }
+    SELECTOR_COMPOUND = { SELECTOR_COMPLEX ~ WS* ~ ("," ~ WS* ~ SELECTOR_COMPLEX ~ WS*)* }
+    SELECTOR_COMPLEX = { SELECTOR_SIMPLE ~ SELECTOR_COMPLEX_COMBINATION* }
+        SELECTOR_COMPLEX_COMBINATION = { SELECTOR_COMPLEX_COMBINATOR ~ SELECTOR_SIMPLE }
+        SELECTOR_COMPLEX_COMBINATOR = {
+                      SELECTOR_COMPLEX_COMBINATOR__NEXT_SIBLING
+                    | SELECTOR_COMPLEX_COMBINATOR__CHILD
+                    | SELECTOR_COMPLEX_COMBINATOR__COLUMN
+                    | SELECTOR_COMPLEX_COMBINATOR__SUBSEQUENT_SIBLING
+                    | SELECTOR_COMPLEX_COMBINATOR__DESCENDENT
+                    | SELECTOR_COMPLEX_COMBINATOR__NAMESPACE
+                }
+            SELECTOR_COMPLEX_COMBINATOR__NEXT_SIBLING       = { "+" }
+            SELECTOR_COMPLEX_COMBINATOR__CHILD              = { ">" }
+            SELECTOR_COMPLEX_COMBINATOR__COLUMN             = { "||" }
+            SELECTOR_COMPLEX_COMBINATOR__SUBSEQUENT_SIBLING = { "~" }
+            SELECTOR_COMPLEX_COMBINATOR__DESCENDENT         = { " " }
+            SELECTOR_COMPLEX_COMBINATOR__NAMESPACE          = { "|" }
+
+    SELECTOR_SIMPLE = { (SELECTOR_SIMPLE_BASIC)* ~ (SELECTOR_SIMPLE_PSEUDOCLASS)* ~ SELECTOR_SIMPLE_PSEUDOELEMENT? }
+        SELECTOR_SIMPLE_ATTRIBUTE = { "[" ~ IDENT ~ (SELECTOR_SIMPLE_ATTRIBUTE_OPERATOR ~ VALUE ~ SELECTOR_SIMPLE_ATTRIBUTE_SENS?)? ~ "]" }
+            SELECTOR_SIMPLE_ATTRIBUTE_OPERATOR = { "=" | "~=" | "|=" | "^=" | "$=" | "*=" }
+            SELECTOR_SIMPLE_ATTRIBUTE_SENS = { "i" | "I" | "s" | "S" }
+
+        SELECTOR_SIMPLE_PSEUDOCLASS = { ":" ~ IDENT ~ ("(" ~ VALUE_LIST ~ ")")? }
+        SELECTOR_SIMPLE_PSEUDOELEMENT = { "::" ~ IDENT }
+
+        SELECTOR_SIMPLE_BASIC = { SELECTOR_SIMPLE_BASIC_TYPE | SELECTOR_SIMPLE_BASIC_CLASS | SELECTOR_SIMPLE_BASIC_ID | SELECTOR_SIMPLE_BASIC_UNIVERAL }
+            SELECTOR_SIMPLE_BASIC_ID = { "#" ~ !("#") ~ SELECTOR_SIMPLE_BASIC }
+            SELECTOR_SIMPLE_BASIC_CLASS = { "." ~ !(".") ~ SELECTOR_SIMPLE_BASIC }
+            SELECTOR_SIMPLE_BASIC_TYPE = { IDENT }
+            SELECTOR_SIMPLE_BASIC_UNIVERAL = { "*" }
+
+VALUE_LIST = { WS* ~ (VALUE ~ (","? ~ VALUE)* ~ WS*) }
+
+VALUE = { FUNCTION | DIMENSION | PERCENTAGE | NUMBER | IDENT | STRING | HASH }
+
+// BEGIN CSS PARSER RULES SPEC
+
+// BEGIN CONVENIENCE GRAMMAR TOKENS
+
+UNQUOTED_URL = {
+    (!ESCAPE ~ !NEWLINE ~ !"\"" ~ !"'" ~ !"(" ~ !")" ~ NON_PRINTABLE)* ~ ESCAPE*
+}
+
+// BEGIN CSS GRAMMAR TOKENS SPEC
+
+PERCENTAGE = { NUMBER ~ "%" }
+
+DIMENSION = { NUMBER ~ IDENT }
+
+NUMBER = { ("+" | "-")? ~ ((ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+) | ASCII_DIGIT+ | ("." ~ ASCII_DIGIT+)) ~ (("e" | "E") ~ ("+" | "-")? ~ ASCII_DIGIT+)? }
+
+URL = { "url(" ~ WS* ~ (STRING | UNQUOTED_URL)? ~ WS* ~ ")" }
+
+STRING = { 
+      ("'" ~ (ESCAPE | (!"'" ~ !NEWLINE ~ ANY))* ~ "'")
+    | ("\"" ~ (ESCAPE | (!"\"" ~ !NEWLINE ~ ANY))* ~ "\"")
+}
+
+HASH = { "#" ~ (ESCAPE | '0'..'9' | 'a'..'z' | 'A'..'Z' | "_" | NON_ASCII)+ }
+
+AT_KEYWORD = { "@" ~ IDENT }
+
+FUNCTION = { IDENT ~ "(" }
+
+// https://drafts.csswg.org/css-syntax/#ident-token-diagram
+// COMPLIANT
+IDENT = { (
+    "--" | (
+        "-"? ~ (
+            ('a'..'z' | 'A'..'Z' | "_" | NON_ASCII)
+            | ESCAPE
+        )
+    ))
+    ~ (
+        ('0'..'9' | 'a'..'z' | 'A'..'Z' | "_" | "-" | NON_ASCII)
+        | ESCAPE
+    )*
+}
+
+// https://drafts.csswg.org/css-syntax/#comment-diagram
+// https://drafts.csswg.org/css-syntax/#whitespace-diagram
+// https://drafts.csswg.org/css-syntax/#ws*-diagram
+// DEVIATION: PEDANTIC
+// REASON: simplifies multiple token types into a single definition.
+//         doesn't repeat so use mirrors "ws*" syntax used in spec
+WS = _{ (" " | "\t" | NEWLINE) | ("/*" ~ (!"*/" ~ ANY)* ~ "*/") }
+
+// https://drafts.csswg.org/css-syntax/#non-printable-code-point
+// COMPLIANT
+NON_PRINTABLE = _{ '\u{0000}'..'\u{0008}' | "\u{000B}" | '\u{000E}'..'\u{001F}' | "\u{007F}" }
+
+// https://drafts.csswg.org/css-syntax/#non-ascii-ident-code-point
+// COMPLIANT
+NON_ASCII = _{
+      "\u{00B7}"
+    | '\u{00C0}'..'\u{00D6}' | '\u{00F8}'..'\u{037D}' | '\u{037F}'..'\u{1FFF}'
+    | "\u{200C}" | "\u{200D}" | "\u{203F}" | "\u{2040}"
+    | '\u{2070}'..'\u{218F}' | '\u{2C00}'..'\u{2FEF}' | '\u{3001}'..'\u{D7FF}'
+    | '\u{F900}'..'\u{FDCF}' | '\u{FDF0}'..'\u{FFFD}' | '\u{10000}'..'\u{10FFFF}'
+}
+
+// https://drafts.csswg.org/css-syntax/#escape-diagram
+// COMPLIANT
+ESCAPE = _{
+    "\\" ~ (
+          (!NEWLINE ~ !HEX_DIGIT)
+        | (HEX_DIGIT{1, 6} ~ WS?)
+    )
+}
+
+// https://drafts.csswg.org/css-syntax/#hex-digit-diagram
+// COMPLIANT
+HEX_DIGIT = _{ '0'..'9' | 'a'..'f' | 'A'..'F' }
+
+// https://drafts.csswg.org/css-syntax/#newline-diagram
+// COMPLIANT
+NEWLINE = _{ "\n" | "\r" | "\r\n" | "\u{000C}" }

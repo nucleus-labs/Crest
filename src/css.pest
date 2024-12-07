@@ -1,42 +1,232 @@
 
-Css = { SOI ~ Rule* ~ EOI }
+/*
+ * SEEKS TO BE CSS3 SYNTAX COMPLIANT ACCORDING TO:
+ * https://drafts.csswg.org/css-syntax/
+*/
 
-Rule = { Selector ~ "{" ~ PropertyList ~ "}" }
+/// BEGIN CONVENIENCE PARSER RULES
 
-Selector = { CompoundSelector }
-    CompoundSelector = { ComplexSelector ~ ("," ~ ComplexSelector)* }
-    ComplexSelector = { SimpleSelector ~ Combination* }
-        Combination = { Combinator ~ SimpleSelector }
-        Combinator = @{ NextSibling | Child | Column | SubsequentSibling | Descendent | Namespace }
-            NextSibling         = { "+" }
-            Child               = { ">" }
-            Column              = { "||" }
-            SubsequentSibling   = { "~" }
-            Namespace           = { "|" }
-            Descendent          = @{ " " }
-    // TODO: Implement { Attribute, Pseudoclass, Pseudoelement } Simple Selectors
-    SimpleSelector = { (BasicSelector)* }
-        BasicSelector = { TypeSelector | ClassSelector | IdSelector | UniversalSelector }
-            IdSelector = { "#" ~ !("#") ~ BasicSelector }
-            ClassSelector = { "." ~ !(".") ~ BasicSelector }
-            TypeSelector = { Identifier }
-            UniversalSelector = { "*" }
+CSS = { WS* ~ STYLESHEET ~ WS* ~ EOI }
 
-PropertyList = { Property* }
-Property = { Identifier ~ ":" ~ ValueList ~ ";" }
+SELECTOR = { SELECTOR_REPR }
 
-ValueList = { Value ~ (","? ~ Value)* }
-Value = { Function | Number | Identifier | String | Hex }
-    Function = { Identifier ~ "(" ~ ValueList ~ ")" }
-    Hex = @{ "#" ~ (ASCII_DIGIT | 'a'..'f' | 'A'..'F'){6} }
-    String = { ("\"" ~ (!("\"") ~ ASCII)* ~ "\"") | ("'" ~ (!("'") ~ ASCII)* ~ "'") }
-    Number = ${ Sign? ~ (Float | Int) ~ Unit? }
-        Sign = { "+" | "-" }
-        Int = { ASCII_DIGIT+ }
-        Float = { ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
-        Unit = { ("cm"|"mm"|"in"|"px"|"pt"|"pc") | ("em"|"ex"|"ch"|"rem"|"vw"|"vh"|"vmin"|"vmax"|"%") }
+SELECTOR_REPR = _{ (PRESERVED_TOKEN | SIMPLE_BLOCK)+ }
 
-Identifier = { (ASCII_ALPHA | "_" | "-") ~ (ASCII_ALPHANUMERIC | "_" | "-")* }
+COMPONENT_VALUE_LIST = { (COMPONENT_VALUE ~ WS*)+ }
+// COMPONENT_VALUE_LIST = { (COMPONENT_VALUE ~ WS* ~ "," ~ WS*)+ }
 
-WHITESPACE = _{ (" " | "\t" | NEWLINE) }
-COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+/// BEGIN CSS PARSER RULES SPEC
+
+// https://drafts.csswg.org/css-syntax/#stylesheet-diagram
+// COMPLIANT
+STYLESHEET = { (CDO | CDC | QUALIFIED_RULE | AT_RULE | WS)* }
+
+// https://drafts.csswg.org/css-syntax/#at-rule-diagram
+// DEVIATION: PEDANTIC
+// REASON: uses short-hand
+AT_RULE = { AT_KEYWORD ~ COMPONENT_VALUE_LIST? ~ (DECL_BLOCK | ";") }
+
+// https://drafts.csswg.org/css-syntax/#qualified-rule-diagram
+// DEVIATION: PEDANTIC
+// REASON: uses short-hand
+QUALIFIED_RULE = { WS* ~ SELECTOR ~ WS* ~ DECL_BLOCK }
+
+// https://drafts.csswg.org/css-syntax/#declaration-list-diagram
+// DEVIATION: COMPLIANT
+DECL_BLOCK = { "{" ~ WS* ~ (
+        ( (DECLARATION ~ WS* ~ ";") | AT_RULE | QUALIFIED_RULE ) ~ WS*
+    )* ~ WS* ~ "}"
+}
+
+// https://drafts.csswg.org/css-syntax/#declaration-diagram
+// DEVIATION: PEDANTIC
+// REASON: more specific whitespace constraints than given by the spec
+DECLARATION = {
+    IDENT ~ WS* ~ ":" ~ WS* ~ (
+        (!WS ~ COMPONENT_VALUE ~ WS*)
+    )+
+    ~ (WS+ ~ IMPORTANT)?
+}
+
+// https://drafts.csswg.org/css-syntax/#!important-diagram
+// COMPLIANT
+IMPORTANT = { "!" ~ WS* ~ "important" ~ WS* }
+
+// https://drafts.csswg.org/css-syntax/#component-value-diagram
+// WEAKLY COMPLIANT
+// REASON: uses concrete representation of an abstract definition (PRESERVED_TOKEN)
+COMPONENT_VALUE = { PRESERVED_TOKEN | SIMPLE_BLOCK | FUNCTION_BLOCK }
+
+// https://drafts.csswg.org/css-syntax/#simple-block-diagram
+// DEVIATION: PEDANTIC
+// REASON: uses short-hand
+SIMPLE_BLOCK = {
+      ("{" ~ COMPONENT_VALUE_LIST ~ "}")
+    | ("(" ~ COMPONENT_VALUE_LIST ~ ")")
+    | ("[" ~ COMPONENT_VALUE_LIST ~ "]")
+}
+
+// https://drafts.csswg.org/css-syntax/#function-block-diagram
+// DEVIATION: PEDANTIC
+// REASON: uses short-hand
+FUNCTION_BLOCK = { FUNCTION ~ COMPONENT_VALUE_LIST ~ ")" }
+
+/// BEGIN CONVENIENCE GRAMMAR TOKENS
+
+UNQUOTED_URL = {
+    (!ESCAPE ~ !NEWLINE ~ !"\"" ~ !"'" ~ !"(" ~ !")" ~ NON_PRINTABLE)* ~ ESCAPE*
+}
+
+WILDCARD = { "*" }
+
+CLASS = { "." ~ IDENT }
+
+ATTRIBUTE_OPERATOR = _{
+	  "="
+    | "~="
+    | "|="
+    | "^="
+    | "$="
+    | "*="
+}
+
+SELECTOR_COMBINATORS = _{
+      "+"
+    | ">"
+    | "||"
+    | "~"
+    | " "
+    | "|"
+}
+
+PRESERVED_TOKEN = _{ !FUNCTION ~ !"{" ~ !"(" ~ !"[" ~ !";" ~ (
+      DIMENSION
+    | NUMBER
+    | IDENT
+    | STRING
+    | URL
+    | HASH
+    | CLASS
+    | WILDCARD
+    | WS
+    | SELECTOR_COMBINATORS
+    | ATTRIBUTE_OPERATOR
+)}
+
+/// BEGIN CSS GRAMMAR TOKENS SPEC
+
+// https://drafts.csswg.org/css-syntax/#percentage-token-diagram
+// COMPLIANT
+PERCENTAGE = { NUMBER ~ "%" }
+
+// https://drafts.csswg.org/css-syntax/#dimension-token-diagram
+// COMPLIANT
+DIMENSION = { NUMBER ~ IDENT }
+
+// https://drafts.csswg.org/css-syntax/#number-token-diagram
+// COMPLIANT
+NUMBER = { ("+" | "-")? ~ ((ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+) | ASCII_DIGIT+ | ("." ~ ASCII_DIGIT+)) ~ (("e" | "E") ~ ("+" | "-")? ~ ASCII_DIGIT+)? }
+
+// https://drafts.csswg.org/css-syntax/#url-token-diagram
+// DEVIATION: UNCOMPLIANT
+// REASON: allows a quoted or un-quoted url
+URL = { "url(" ~ WS* ~ (STRING | UNQUOTED_URL)? ~ WS* ~ ")" }
+
+// https://drafts.csswg.org/css-syntax/#string-token-diagram
+// COMPLIANT
+STRING = {
+    ("'" ~ (
+          (!"'" ~ !NEWLINE ~ !"\\" ~ ANY)
+        | ESCAPE
+        | ("\\" ~ NEWLINE)
+    )*
+    ~ "'")
+    |
+    ("\"" ~ (
+        (!"\"" ~ !NEWLINE ~ !"\\" ~ ANY)
+      | ESCAPE
+      | ("\\" ~ NEWLINE)
+  )*
+  ~ "\"")
+}
+
+// https://drafts.csswg.org/css-syntax/#hash-token-diagram
+// COMPLIANT
+HASH = {
+    "#" ~ (
+          ('0'..'9' | 'a'..'z' | 'A'..'Z' | "_" | "-" | NON_ASCII)
+        | ESCAPE
+    )+
+}
+
+// https://drafts.csswg.org/css-syntax/#at-keyword-token-diagram
+// COMPLIANT
+AT_KEYWORD = { "@" ~ IDENT }
+
+// https://drafts.csswg.org/css-syntax/#function-token-diagram
+// COMPLIANT
+FUNCTION = { IDENT ~ "(" }
+
+// https://drafts.csswg.org/css-syntax/#ident-token-diagram
+// COMPLIANT
+IDENT = { (
+    "--" | (
+        "-"? ~ (
+            ('a'..'z' | 'A'..'Z' | "_" | NON_ASCII)
+            | ESCAPE
+        )
+    ))
+    ~ (
+        ('0'..'9' | 'a'..'z' | 'A'..'Z' | "_" | "-" | NON_ASCII)
+        | ESCAPE
+    )*
+}
+
+// These are technically defined and referenced in the spec,
+// but I was unable to determine what makes them compliant or not.
+// As such, their compliance cannot be graded. Best I can tell is
+// that, because their consumption is documented to expect discarding
+// a token, they should be ignored. For this reason, they are silenced.
+// This means that they won't cause a syntax error in the highest
+// scope, but they will not generate a token.
+CDO = _{ "<!--" }
+CDC = _{ "-->" }
+
+// https://drafts.csswg.org/css-syntax/#comment-diagram
+// https://drafts.csswg.org/css-syntax/#whitespace-diagram
+// https://drafts.csswg.org/css-syntax/#ws*-diagram
+// DEVIATION: PEDANTIC
+// REASON: simplifies multiple token types into a single definition.
+//         doesn't repeat so use mirrors "ws*" syntax used in spec
+WS = _{ (" " | "\t" | NEWLINE) | ("/*" ~ (!"*/" ~ ANY)* ~ "*/") }
+
+// https://drafts.csswg.org/css-syntax/#non-printable-code-point
+// COMPLIANT
+NON_PRINTABLE = _{ '\u{0000}'..'\u{0008}' | "\u{000B}" | '\u{000E}'..'\u{001F}' | "\u{007F}" }
+
+// https://drafts.csswg.org/css-syntax/#non-ascii-ident-code-point
+// COMPLIANT
+NON_ASCII = _{
+      "\u{00B7}"
+    | '\u{00C0}'..'\u{00D6}' | '\u{00F8}'..'\u{037D}' | '\u{037F}'..'\u{1FFF}'
+    | "\u{200C}" | "\u{200D}" | "\u{203F}" | "\u{2040}"
+    | '\u{2070}'..'\u{218F}' | '\u{2C00}'..'\u{2FEF}' | '\u{3001}'..'\u{D7FF}'
+    | '\u{F900}'..'\u{FDCF}' | '\u{FDF0}'..'\u{FFFD}' | '\u{10000}'..'\u{10FFFF}'
+}
+
+// https://drafts.csswg.org/css-syntax/#escape-diagram
+// COMPLIANT
+ESCAPE = _{
+    "\\" ~ (
+          (!NEWLINE ~ !HEX_DIGIT)
+        | (HEX_DIGIT{1, 6} ~ WS?)
+    )
+}
+
+// https://drafts.csswg.org/css-syntax/#hex-digit-diagram
+// COMPLIANT
+HEX_DIGIT = _{ '0'..'9' | 'a'..'f' | 'A'..'F' }
+
+// https://drafts.csswg.org/css-syntax/#newline-diagram
+// COMPLIANT
+NEWLINE = _{ "\n" | "\r" | "\r\n" | "\u{000C}" }

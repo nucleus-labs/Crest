@@ -1,33 +1,28 @@
+// use std::sync::{Arc, Weak, RwLock};
+// use std::collections::HashMap;
 
-use clap::{command, Parser as Cli};
-use pest::Parser as _;
-
-use std::ffi::OsString;
-use std::fs::read_to_string;
-
-// use peacock_crest::parse::{CssParser, Rule, gen_token};
 use peacock_crest as crest;
 
-#[derive(Cli)]
-#[command(
-    name = "validate-grammar",
-    about = "Run the generated css parser on the provided source"
-)]
-struct ValidationArgs {
-    // /// the name of the parser rule to evaluate
-    // rule: String,
+// struct TreeNode {
+//     attributes: HashMap<&str, (&str, Vec<&str>)>,
 
-    /// parse contents of file at this path
-    source_path: String,
-}
+//     inline_props: crest::style::CssStyleProperties,
+//     applied_properties: crest::style::CssStyleProperties,
+
+//     handle: Arc<RwLock<Self>>,
+//     parent: Weak<RwLock<Self>>,
+//     children: Vec<Arc<RwLock<Self>>>,
+// }
 
 fn main() {
-    let arguments = ValidationArgs::parse();
-    let path = OsString::from(arguments.source_path);
-    let source = read_to_string(path).unwrap();
+    let css = r#"
+div.main {
+    width: 50px;
+    height: 100px;
+}
+"#;
 
-    let rules = crest::parse(source);
-    for _rule in rules.iter() {
-        // print!("{}, ", token.get_source().unwrap());
-    }
+    println!("====================================\n{css}\n====================================");
+    let sheet: crest::style::Stylesheet = css.parse().expect("Failed to parse css");
+    println!("{sheet}\n====================================");
 }
