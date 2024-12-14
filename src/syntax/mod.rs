@@ -1,6 +1,6 @@
 pub(crate) mod pest_css;
 
-pub(crate) use pest_css::CssParser;
+pub use pest_css::CssParser;
 pub use pest_css::Rule as CssRule;
 
 use std::cell::Cell;
@@ -26,6 +26,8 @@ pub type CssResult<T> = Result<T, CssExpectError>;
 
 #[derive(Debug, Clone, derive_more::From)]
 pub(crate) enum CssExpectError {
+    #[from]
+    ParseError(pest::error::Error<CssRule>),
     #[from]
     InvalidSelector(SelectorExpectError),
     TooFewTokens(String),
@@ -150,7 +152,7 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("STYLESHEET".into()))?;
 
         if !matches!(token.get_rule(), CssRule::STYLESHEET) {
-            self.fail_type(CssRule::STYLESHEET)?;
+            return self.fail_type(CssRule::STYLESHEET);
         }
 
         let rule_expector = Self::new(token);
@@ -187,12 +189,11 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("AT_RULE".into()))?;
 
         if !matches!(token.get_rule(), CssRule::AT_RULE) {
-            self.fail_type(CssRule::AT_RULE)?;
+            return self.fail_type(CssRule::AT_RULE);
         }
 
         let name = token.get_children().unwrap()[0].get_children().unwrap()[0]
             .get_source()
-            .get()
             .to_string();
 
         Ok(crate::style::AtRule { name })
@@ -206,7 +207,7 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("QUALIFIED_RULE".into()))?;
 
         if !matches!(token.get_rule(), CssRule::QUALIFIED_RULE) {
-            self.fail_type(CssRule::QUALIFIED_RULE)?;
+            return self.fail_type(CssRule::QUALIFIED_RULE);
         }
 
         // Self: QUALIFIED_RULE = { WS* ~ SELECTOR ~ WS* ~ DECL_BLOCK }
@@ -214,12 +215,18 @@ impl<'a> CssTokenTracker<'a> {
 
         // QUALIFIED_RULE -> SELECTOR
         let selector_slice: SourceSlice = components[0].get_source();
-        let selector_parser = parse_source::<SelectorRule, SelectorParser>(
+        let selector_parser_result = parse_source::<SelectorRule, SelectorParser>(
             selector_slice.get(),
             SelectorRule::SELECTOR_LIST,
-        )
-        .unwrap();
-        let selector_expector = SelectorTokenTracker::new(Boo::Owned(vec![selector_parser]));
+        );
+
+        let selector_parser = match selector_parser_result {
+            Ok(val) => val,
+            Err(err) => return Err(CssExpectError::InvalidSelector(err.into())),
+        };
+
+        let selector_vec = vec![selector_parser];
+        let selector_expector = SelectorTokenTracker::from_vec(&selector_vec);
 
         match selector_expector.expect_selector_list() {
             Ok(selectors) => {
@@ -251,7 +258,9 @@ impl<'a> CssTokenTracker<'a> {
                 }
                 Ok((selectors, sheet))
             }
-            Err(selector_err) => self.fail_because(CssExpectError::InvalidSelector(selector_err)),
+            Err(selector_err) => {
+                self.fail_because(CssExpectError::InvalidSelector(selector_err))
+            },
         }
     }
 
@@ -267,7 +276,7 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("IDENT".into()))?;
 
         if !matches!(token.get_rule(), CssRule::IDENT) {
-            self.fail_type(CssRule::IDENT)?;
+            return self.fail_type(CssRule::IDENT);
         }
 
         Ok(token.get_source())
@@ -281,7 +290,7 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("NUMBER".into()))?;
 
         if !matches!(token.get_rule(), CssRule::NUMBER) {
-            self.fail_type(CssRule::NUMBER)?;
+            return self.fail_type(CssRule::NUMBER);
         }
 
         match token.get_source().parse::<f32>() {
@@ -298,7 +307,7 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("PERCENTAGE".into()))?;
 
         if !matches!(token.get_rule(), CssRule::PERCENTAGE) {
-            self.fail_type(CssRule::PERCENTAGE)?;
+            return self.fail_type(CssRule::PERCENTAGE);
         }
 
         match token.get_source().parse::<f32>() {
@@ -315,7 +324,7 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("DIMENSION".into()))?;
 
         if !matches!(token.get_rule(), CssRule::DIMENSION) {
-            self.fail_type(CssRule::DIMENSION)?;
+            return self.fail_type(CssRule::DIMENSION);
         }
 
         let components = token
@@ -323,11 +332,11 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("DIMENSION".into()))?;
 
         if !matches!(components[0].get_rule(), CssRule::NUMBER) {
-            self.fail_type(CssRule::NUMBER)?;
+            return self.fail_type(CssRule::NUMBER);
         }
 
         if !matches!(components[1].get_rule(), CssRule::IDENT) {
-            self.fail_type(CssRule::IDENT)?;
+            return self.fail_type(CssRule::IDENT);
         }
 
         match components[0].get_source().parse::<f32>() {
@@ -349,7 +358,7 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("STRING".into()))?;
 
         if !matches!(token.get_rule(), CssRule::STRING) {
-            self.fail_type(CssRule::STRING)?;
+            return self.fail_type(CssRule::STRING);
         }
 
         let mut slice = token.get_source();
@@ -368,9 +377,9 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("URL".into()))?;
 
         if !matches!(token.get_rule(), CssRule::URL) {
-            self.fail_type(CssRule::URL)?;
+            return self.fail_type(CssRule::URL);
         }
-        
+
         Ok(token.get_children().unwrap()[0].get_source())
     }
 
@@ -382,7 +391,7 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("HASH".into()))?;
 
         if !matches!(token.get_rule(), CssRule::HASH) {
-            self.fail_type(CssRule::HASH)?;
+            return self.fail_type(CssRule::HASH);
         }
 
         let mut slice = token.get_source();
@@ -399,17 +408,16 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("FUNCTION_BLOCK".into()))?;
 
         if !matches!(token.get_rule(), CssRule::FUNCTION_BLOCK) {
-            self.fail_type(CssRule::FUNCTION_BLOCK)?;
+            return self.fail_type(CssRule::FUNCTION_BLOCK);
         }
 
         let function_expector: CssTokenTracker<'a> = Self::new(token);
         let name = function_expector.expect_function()?;
-        
+
         if !function_expector.is_empty() {
             let params = function_expector.expect_component_values()?;
             Ok((name, Some(params)))
-        }
-        else {
+        } else {
             Ok((name, None))
         }
     }
@@ -420,7 +428,7 @@ impl<'a> CssTokenTracker<'a> {
             .ok_or(CssExpectError::TooFewTokens("FUNCTION".into()))?;
 
         if !matches!(token.get_rule(), CssRule::FUNCTION) {
-            self.fail_type(CssRule::FUNCTION)?;
+            return self.fail_type(CssRule::FUNCTION);
         }
 
         Self::new(token).expect_identifier()

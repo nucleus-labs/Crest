@@ -8,11 +8,12 @@
 //!
 
 mod selector;
-mod syntax;
+pub mod syntax;
 
+pub mod source;
 pub(crate) mod boo;
+
 pub mod error;
-pub(crate) mod source;
 pub mod style;
 pub mod unit;
 

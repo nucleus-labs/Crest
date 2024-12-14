@@ -36,12 +36,28 @@ SELECTOR_ID = { HASH }
 SELECTOR_CLASS = { "." ~ IDENT }
 SELECTOR_ATTRIBUTE = {
       ("[" ~ WS* ~ IDENT ~ WS* ~ "]")
-    | ("[" ~ WS* ~ IDENT ~ WS* ~ ATTR_MATCHER ~ WS* ~ (STRING | IDENT) ~ WS* ~ (ATTR_MODIFIER ~ WS*)? ~ "]")
+    | ("[" ~ WS* ~ IDENT ~ WS* ~ ATTR_MATCHER ~ WS* ~ (ATTR_MODIFIER ~ WS*)? ~ "]")
 }
-ATTR_MATCHER = { ("~" | "|" | "^" | "$" | "*")? ~ "=" }
+ATTR_MATCHER = {
+    (
+          ATTR_MATCHER__EXACT_MATCH
+        | ATTR_MATCHER__LIST_CONTAINS
+        | ATTR_MATCHER__STARTS_WITH
+        | ATTR_MATCHER__STARTS_WITH_DASHED
+        | ATTR_MATCHER__ENDS_WITH
+        | ATTR_MATCHER__CONTAINS
+    ) ~ WS* ~ (STRING | IDENT)
+}
 ATTR_MODIFIER = { "i" | "I" | "s" | "S" }
 SELECTOR_PSEUDOCLASS = { (":" ~ IDENT) | (":" ~ FUNCTION ~ (!")" ~ ANY)* ~ ")") }
 SELECTOR_PSEUDOELEMENT = { ":" ~ SELECTOR_PSEUDOCLASS }
+
+ATTR_MATCHER__EXACT_MATCH = { "=" }
+ATTR_MATCHER__LIST_CONTAINS = { "~=" }
+ATTR_MATCHER__STARTS_WITH = { "^=" }
+ATTR_MATCHER__STARTS_WITH_DASHED = { "|=" }
+ATTR_MATCHER__ENDS_WITH = { "$=" }
+ATTR_MATCHER__CONTAINS = { "*=" }
 
 // CONVENIENCE TOKENS
 

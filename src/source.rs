@@ -417,19 +417,13 @@ impl<'a, R: RuleType> TokenTracker<'a, R> {
     }
 }
 
-pub(crate) fn parse_source<R: RuleType, P: Parser<R>>(
+pub fn parse_source<R: RuleType, P: Parser<R>>(
     source: &str,
     rule: R,
-) -> Result<ParserToken<R>, crate::error::Error> {
-    let pairs_result = P::parse(rule, source);
-    if let Err(err) = pairs_result {
-        return Err(crate::error::Error::generic(format!(
-            "Failed to parse {err:?}: {err}"
-        )));
-    }
-
+) -> Result<ParserToken<R>, pest::error::Error<R>> {
     let source_info: Arc<SourceInfo> = SourceInfo::new(source.into());
-    let pairs = pairs_result.unwrap();
+    let pairs = P::parse(rule, source)?;
+
     let mut tokens = pairs.tokens();
 
     let mut stack: Vec<StackInfo<R>> = Vec::new();

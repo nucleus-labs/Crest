@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub use properties::CssStyleProperties;
 
 use crate::boo::Boo;
+use crate::error::Error;
 use crate::selector::SelectorNode;
 use crate::source::{parse_source, SourceSlice};
 use crate::syntax::{CssExpectError, CssParser, CssRule, CssToken, CssTokenTracker};
@@ -75,7 +76,7 @@ impl<'a> CssStyleValueExpector<'a> {
 }
 
 impl std::str::FromStr for Stylesheet {
-    type Err = crate::error::Error;
+    type Err = Error;
 
     fn from_str(source: &str) -> Result<Self, Self::Err> {
         match parse_source::<CssRule, CssParser>(source, CssRule::CSS) {
@@ -86,7 +87,7 @@ impl std::str::FromStr for Stylesheet {
                 let stylesheet = expector.expect_stylesheet()?;
                 Ok(stylesheet)
             }
-            Err(err) => Err(err),
+            Err(err) => Err(Error::CssError(err.into())),
         }
     }
 }
@@ -99,13 +100,7 @@ impl std::fmt::Display for AtRule {
 
 impl std::fmt::Display for Stylesheet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (name, at_rule) in self.at_rules.iter() {
-            writeln!(f, "// .");
-            writeln!(f, "{at_rule}");
-        }
-
         for (selector, props) in self.style_rules.iter() {
-            writeln!(f, "// .");
             writeln!(f, "{selector} {{\n{props}\n}}\n");
         }
 

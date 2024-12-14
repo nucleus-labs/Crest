@@ -24,6 +24,5 @@ div.main {
 
     println!("====================================\n{css}\n====================================");
     let sheet: crest::style::Stylesheet = css.parse().expect("Failed to parse css");
-    println!(";");
     println!("{sheet}\n====================================");
 }
