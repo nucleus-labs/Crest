@@ -31,15 +31,39 @@ pub mod types {
 use std::borrow::Borrow;
 use std::str::FromStr;
 
-use crate::parse::{CssRule, CssToken, SourceSlice};
-use crate::parse::{CssTokenTracker, TokenExpected};
-use crate::{
-    unit::{Angle, Dimension, Length, Resolution},
-    Unit,
-};
+use crate::source::SourceSlice;
+use crate::syntax::{CssRule, CssToken, CssTokenTracker};
+use crate::unit::{Angle, Dimension, Length, Resolution, Unit};
 use types::KeywordGlobal;
 
 type AsyncHandle<T> = std::sync::Arc<std::sync::RwLock<T>>;
+
+#[bitmask_enum::bitmask]
+pub enum TokenExpected {
+    /// A [`<ident-token>`](https://drafts.csswg.org/css-syntax/#ident-token-diagram)
+    Ident,
+
+    /// A [`<hash-token>`](https://drafts.csswg.org/css-syntax/#hash-token-diagram) with the type flag set to "unrestricted"
+    Hash,
+
+    /// A [`<string-token>`](https://drafts.csswg.org/css-syntax/#string-token-diagram)
+    QuotedString,
+
+    /// A [`<url-token>`](https://drafts.csswg.org/css-syntax/#url-token-diagram)
+    UnquotedUrl,
+
+    /// A [`<number-token>`](https://drafts.csswg.org/css-syntax/#number-token-diagram)
+    Number,
+
+    /// A [`<percentage-token>`](https://drafts.csswg.org/css-syntax/#percentage-token-diagram)
+    Percentage,
+
+    /// A [`<dimension-token>`](https://drafts.csswg.org/css-syntax/#dimension-token-diagram)
+    Dimension,
+
+    /// A [`<function-token>`](https://drafts.csswg.org/css-syntax/#function-token-diagram)
+    Function,
+}
 
 /// CssValue is a standardized interface for css style attribute values. Each css attribute
 /// has its own requirements for value types, so this interface is for allowing defined
@@ -49,7 +73,7 @@ pub trait CssValue: Sized + From<Unit> + Into<Unit> {
     type Keyword: std::fmt::Debug + std::fmt::Display + Clone + FromStr;
 
     fn type_name() -> &'static str;
-    fn type_token() -> crate::parse::TokenExpected;
+    fn type_token() -> TokenExpected;
 
     fn parse(tracker: &CssTokenTracker) -> Result<CssAttributeValue<Self>, String> {
         let valid_tokens = Self::type_token();

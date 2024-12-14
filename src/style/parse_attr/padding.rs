@@ -1,4 +1,4 @@
-use super::CssValue;
+use super::{CssValue, TokenExpected};
 use crate::Unit;
 
 #[derive(Debug, Clone)]
@@ -22,7 +22,7 @@ impl CssValue for CssPadding {
     fn type_name() -> &'static str {
         "CssPadding"
     }
-    fn type_token() -> crate::parse::TokenExpected {
-        crate::parse::TokenExpected::Dimension
+    fn type_token() -> TokenExpected {
+        TokenExpected::Dimension
     }
 }

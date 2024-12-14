@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::parse_attr::{self, types, CssAttributeValue, CssStyleAttribute};
 use crate::unit::Unit;
 
@@ -49,6 +51,14 @@ impl CssStyleProperties {
 
             _ => todo!("Update structure unknown"),
         }
+    }
+
+    pub fn apply(&self, other: &Self) -> Self {
+        todo!()
+    }
+
+    pub fn calculated_values(&self) -> HashMap<&'static str, Box<[Unit]>> {
+        todo!()
     }
 }
 

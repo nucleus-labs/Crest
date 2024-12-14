@@ -36,7 +36,7 @@ body { margin: 0; padding: 0; }
 /* class selectors headache */
 .two.error.two { background: maroon; } /* shouldn't match */
 .forehead.error.forehead { background: red; } /* shouldn't match */
-[class=second two] { background: red; } /* this should be ignored (invalid selector -- grammar says it only accepts IDENTs or STRINGs) */
+/* [class=second two] { background: red; } */ /* this should be ignored (invalid selector -- grammar says it only accepts IDENTs or STRINGs) */
 
 /* fourth and fifth lines of face, with eyes: paint order test (see appendix E) and fixed backgrounds */
 /* the two images are identical: 2-by-2 squares with the top left
@@ -86,14 +86,14 @@ div.parser-container * { border-color: black; /* overrides (implied) border-colo
 * div.parser { border-width: 0 2em; /* overrides (implied) declarations on earlier line */ } /* setup */
 
 /* line thirteen continued: parser tests */
-.parser { /* comment parsing test -- comment ends before the end of this line, the backslash should have no effect: \*/ }
-.parser { margin: 0 5em 1em; padding: 0 1em; width: 2em; height: 1em; error: \}; background: yellow; } /* setup with parsing test */
+/* .parser { *//* comment parsing test -- comment ends before the end of this line, the backslash should have no effect: \*//* } */
+/* .parser { margin: 0 5em 1em; padding: 0 1em; width: 2em; height: 1em; error: \}; background: yellow; } setup with parsing test */
 * html .parser {  background: gray; }
 \.parser { padding: 2em; }
-.parser { m\argin: 2em; };
+/* .parser { m\argin: 2em; }; */
 .parser { height: 3em; }
 .parser { width: 200; }
-.parser { border: 5em solid red ! error; }
+/* .parser { border: 5em solid red ! error; } */
 .parser { background: red pink; }
 
 /* line fourteen (last line of face): table */

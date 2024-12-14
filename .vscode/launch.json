@@ -7,6 +7,62 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug unit tests in library 'peacock_pinion'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=peacock-pinion"
+                ],
+                "filter": {
+                    "name": "peacock_pinion",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'basic'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=basic",
+                    "--package=peacock-pinion"
+                ],
+                "filter": {
+                    "name": "basic",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'basic'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=basic",
+                    "--package=peacock-pinion"
+                ],
+                "filter": {
+                    "name": "basic",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug unit tests in library 'peacock_crest'",
             "cargo": {
                 "args": [
@@ -26,35 +82,276 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug example 'validate-grammar'",
+            "name": "Debug example 'basic'",
             "cargo": {
                 "args": [
                     "build",
-                    "--example=validate-grammar",
+                    "--example=basic",
                     "--package=peacock-crest"
                 ],
                 "filter": {
-                    "name": "validate-grammar",
+                    "name": "basic",
                     "kind": "example"
                 }
             },
-            "args": ["--file", "rule", "static/css/style.css"],
+            "args": [],
             "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in example 'validate-grammar'",
+            "name": "Debug unit tests in example 'basic'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--example=validate-grammar",
+                    "--example=basic",
                     "--package=peacock-crest"
                 ],
                 "filter": {
-                    "name": "validate-grammar",
+                    "name": "basic",
                     "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'basic'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=basic",
+                    "--package=basic"
+                ],
+                "filter": {
+                    "name": "basic",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'basic'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=basic",
+                    "--package=basic"
+                ],
+                "filter": {
+                    "name": "basic",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'peacock'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=peacock"
+                ],
+                "filter": {
+                    "name": "peacock",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'calculator'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=calculator",
+                    "--package=calculator"
+                ],
+                "filter": {
+                    "name": "calculator",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'calculator'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=calculator",
+                    "--package=calculator"
+                ],
+                "filter": {
+                    "name": "calculator",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'dynamic-behaviour'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=dynamic-behaviour",
+                    "--package=dynamic-behaviour"
+                ],
+                "filter": {
+                    "name": "dynamic-behaviour",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'dynamic-behaviour'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=dynamic-behaviour",
+                    "--package=dynamic-behaviour"
+                ],
+                "filter": {
+                    "name": "dynamic-behaviour",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'dynamic-structure'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=dynamic-structure",
+                    "--package=dynamic-structure"
+                ],
+                "filter": {
+                    "name": "dynamic-structure",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'dynamic-structure'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=dynamic-structure",
+                    "--package=dynamic-structure"
+                ],
+                "filter": {
+                    "name": "dynamic-structure",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'renderer'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=renderer",
+                    "--package=renderer"
+                ],
+                "filter": {
+                    "name": "renderer",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'renderer'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=renderer",
+                    "--package=renderer"
+                ],
+                "filter": {
+                    "name": "renderer",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'widget-sandbox'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=widget-sandbox",
+                    "--package=widget-sandbox"
+                ],
+                "filter": {
+                    "name": "widget-sandbox",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'widget-sandbox'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=widget-sandbox",
+                    "--package=widget-sandbox"
+                ],
+                "filter": {
+                    "name": "widget-sandbox",
+                    "kind": "bin"
                 }
             },
             "args": [],

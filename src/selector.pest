@@ -1,68 +1,88 @@
 
-SELECTOR = { SELECTOR_COMPOUND }
-    SELECTOR_COMPOUND = { SELECTOR_COMPLEX ~ WS* ~ ("," ~ WS* ~ SELECTOR_COMPLEX ~ WS*)* }
-    SELECTOR_COMPLEX = { SELECTOR_SIMPLE ~ SELECTOR_COMPLEX_COMBINATION* }
-        SELECTOR_COMPLEX_COMBINATION = { SELECTOR_COMPLEX_COMBINATOR ~ SELECTOR_SIMPLE }
-        SELECTOR_COMPLEX_COMBINATOR = {
-                      SELECTOR_COMPLEX_COMBINATOR__NEXT_SIBLING
-                    | SELECTOR_COMPLEX_COMBINATOR__CHILD
-                    | SELECTOR_COMPLEX_COMBINATOR__COLUMN
-                    | SELECTOR_COMPLEX_COMBINATOR__SUBSEQUENT_SIBLING
-                    | SELECTOR_COMPLEX_COMBINATOR__DESCENDENT
-                    | SELECTOR_COMPLEX_COMBINATOR__NAMESPACE
-                }
-            SELECTOR_COMPLEX_COMBINATOR__NEXT_SIBLING       = { "+" }
-            SELECTOR_COMPLEX_COMBINATOR__CHILD              = { ">" }
-            SELECTOR_COMPLEX_COMBINATOR__COLUMN             = { "||" }
-            SELECTOR_COMPLEX_COMBINATOR__SUBSEQUENT_SIBLING = { "~" }
-            SELECTOR_COMPLEX_COMBINATOR__DESCENDENT         = { " " }
-            SELECTOR_COMPLEX_COMBINATOR__NAMESPACE          = { "|" }
+/// BEGIN SELECTOR GRAMMAR SPEC
+// each rule is defined in accordance to their corresponding rule at:
+// https://www.w3.org/TR/selectors/#grammar
 
-    SELECTOR_SIMPLE = { (SELECTOR_SIMPLE_BASIC)* ~ (SELECTOR_SIMPLE_PSEUDOCLASS)* ~ SELECTOR_SIMPLE_PSEUDOELEMENT? }
-        SELECTOR_SIMPLE_ATTRIBUTE = { "[" ~ IDENT ~ (SELECTOR_SIMPLE_ATTRIBUTE_OPERATOR ~ VALUE ~ SELECTOR_SIMPLE_ATTRIBUTE_SENS?)? ~ "]" }
-            SELECTOR_SIMPLE_ATTRIBUTE_OPERATOR = { "=" | "~=" | "|=" | "^=" | "$=" | "*=" }
-            SELECTOR_SIMPLE_ATTRIBUTE_SENS = { "i" | "I" | "s" | "S" }
+SELECTOR_LIST = { SELECTOR_COMPLEX_LIST }
+SELECTOR_COMPLEX_LIST = { SELECTOR_COMPLEX ~ WS* ~ ("," ~ WS* ~ SELECTOR_COMPLEX ~ WS*)* }
+SELECTOR_COMPOUND_LIST = { SELECTOR_COMPOUND ~ WS* ~ ("," ~ WS* ~ SELECTOR_COMPOUND ~ WS*)* }
+SELECTOR_SIMPLE_LIST = { SELECTOR_SIMPLE ~ WS* ~ ("," ~ WS* ~ SELECTOR_SIMPLE ~ WS*)* }
+SELECTOR_RELATIVE_LIST = { SELECTOR_RELATIVE ~ WS* ~ ("," ~ WS* ~ SELECTOR_RELATIVE ~ WS*)* }
 
-        SELECTOR_SIMPLE_PSEUDOCLASS = { ":" ~ IDENT ~ ("(" ~ VALUE_LIST ~ ")")? }
-        SELECTOR_SIMPLE_PSEUDOELEMENT = { "::" ~ IDENT }
-
-        SELECTOR_SIMPLE_BASIC = { SELECTOR_SIMPLE_BASIC_TYPE | SELECTOR_SIMPLE_BASIC_CLASS | SELECTOR_SIMPLE_BASIC_ID | SELECTOR_SIMPLE_BASIC_UNIVERAL }
-            SELECTOR_SIMPLE_BASIC_ID = { "#" ~ !("#") ~ SELECTOR_SIMPLE_BASIC }
-            SELECTOR_SIMPLE_BASIC_CLASS = { "." ~ !(".") ~ SELECTOR_SIMPLE_BASIC }
-            SELECTOR_SIMPLE_BASIC_TYPE = { IDENT }
-            SELECTOR_SIMPLE_BASIC_UNIVERAL = { "*" }
-
-VALUE_LIST = { WS* ~ (VALUE ~ (","? ~ VALUE)* ~ WS*) }
-
-VALUE = { FUNCTION | DIMENSION | PERCENTAGE | NUMBER | IDENT | STRING | HASH }
-
-// BEGIN CSS PARSER RULES SPEC
-
-// BEGIN CONVENIENCE GRAMMAR TOKENS
-
-UNQUOTED_URL = {
-    (!ESCAPE ~ !NEWLINE ~ !"\"" ~ !"'" ~ !"(" ~ !")" ~ NON_PRINTABLE)* ~ ESCAPE*
+SELECTOR_COMPLEX = { SELECTOR_COMPOUND ~ (SELECTOR_COMBINATOR ~ SELECTOR_COMPOUND)* }
+SELECTOR_RELATIVE = { SELECTOR_COMBINATOR? ~ SELECTOR_COMPLEX }
+SELECTOR_COMPOUND = {
+    (
+    	(SELECTOR_TYPE | SELECTOR_SUBCLASS+ | (SELECTOR_TYPE ~ SELECTOR_SUBCLASS+))
+        ~ ( SELECTOR_PSEUDOELEMENT ~ SELECTOR_PSEUDOCLASS* )*
+    )+
 }
+SELECTOR_SIMPLE = { SELECTOR_SUBCLASS | SELECTOR_TYPE }
+
+SELECTOR_COMBINATOR = {
+      SELECTOR_COMBINATOR__NEXT_SIBLING
+    | SELECTOR_COMBINATOR__CHILD
+    | SELECTOR_COMBINATOR__COLUMN
+    | SELECTOR_COMBINATOR__SUBSEQUENT_SIBLING
+    | SELECTOR_COMBINATOR__NAMESPACE
+    | SELECTOR_COMBINATOR__DESCENDENT
+}
+SELECTOR_TYPE = { WQ_NAME | (PREFIX_NAMESPACE? ~ "*") }
+PREFIX_NAMESPACE = { (IDENT | "*")? ~ "|" }
+WQ_NAME = { PREFIX_NAMESPACE? ~ IDENT }
+SELECTOR_SUBCLASS = { SELECTOR_ID | SELECTOR_CLASS | SELECTOR_ATTRIBUTE | SELECTOR_PSEUDOCLASS }
+
+SELECTOR_ID = { HASH }
+SELECTOR_CLASS = { "." ~ IDENT }
+SELECTOR_ATTRIBUTE = {
+      ("[" ~ WS* ~ IDENT ~ WS* ~ "]")
+    | ("[" ~ WS* ~ IDENT ~ WS* ~ ATTR_MATCHER ~ WS* ~ (STRING | IDENT) ~ WS* ~ (ATTR_MODIFIER ~ WS*)? ~ "]")
+}
+ATTR_MATCHER = { ("~" | "|" | "^" | "$" | "*")? ~ "=" }
+ATTR_MODIFIER = { "i" | "I" | "s" | "S" }
+SELECTOR_PSEUDOCLASS = { (":" ~ IDENT) | (":" ~ FUNCTION ~ (!")" ~ ANY)* ~ ")") }
+SELECTOR_PSEUDOELEMENT = { ":" ~ SELECTOR_PSEUDOCLASS }
+
+// CONVENIENCE TOKENS
+
+SELECTOR_COMBINATOR__NEXT_SIBLING = { "+" }
+SELECTOR_COMBINATOR__CHILD = { ">" }
+SELECTOR_COMBINATOR__COLUMN = { "||" }
+SELECTOR_COMBINATOR__SUBSEQUENT_SIBLING = { "~" }
+SELECTOR_COMBINATOR__NAMESPACE = { "|" }
+SELECTOR_COMBINATOR__DESCENDENT = { WS+ }
 
 // BEGIN CSS GRAMMAR TOKENS SPEC
 
-PERCENTAGE = { NUMBER ~ "%" }
-
-DIMENSION = { NUMBER ~ IDENT }
-
-NUMBER = { ("+" | "-")? ~ ((ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+) | ASCII_DIGIT+ | ("." ~ ASCII_DIGIT+)) ~ (("e" | "E") ~ ("+" | "-")? ~ ASCII_DIGIT+)? }
-
-URL = { "url(" ~ WS* ~ (STRING | UNQUOTED_URL)? ~ WS* ~ ")" }
-
-STRING = { 
-      ("'" ~ (ESCAPE | (!"'" ~ !NEWLINE ~ ANY))* ~ "'")
-    | ("\"" ~ (ESCAPE | (!"\"" ~ !NEWLINE ~ ANY))* ~ "\"")
+// https://drafts.csswg.org/css-syntax/#string-token-diagram
+// COMPLIANT
+STRING = {
+    ("'" ~ (
+          (!"'" ~ !NEWLINE ~ !"\\" ~ ANY)
+        | ESCAPE
+        | ("\\" ~ NEWLINE)
+    )*
+    ~ "'")
+    |
+    ("\"" ~ (
+        (!"\"" ~ !NEWLINE ~ !"\\" ~ ANY)
+      | ESCAPE
+      | ("\\" ~ NEWLINE)
+  )*
+  ~ "\"")
 }
 
-HASH = { "#" ~ (ESCAPE | '0'..'9' | 'a'..'z' | 'A'..'Z' | "_" | NON_ASCII)+ }
+// https://drafts.csswg.org/css-syntax/#hash-token-diagram
+// COMPLIANT
+HASH = {
+    "#" ~ (
+          ('0'..'9' | 'a'..'z' | 'A'..'Z' | "_" | "-" | NON_ASCII)
+        | ESCAPE
+    )+
+}
 
-AT_KEYWORD = { "@" ~ IDENT }
-
+// https://drafts.csswg.org/css-syntax/#function-token-diagram
+// COMPLIANT
 FUNCTION = { IDENT ~ "(" }
 
 // https://drafts.csswg.org/css-syntax/#ident-token-diagram
@@ -85,7 +105,7 @@ IDENT = { (
 // https://drafts.csswg.org/css-syntax/#ws*-diagram
 // DEVIATION: PEDANTIC
 // REASON: simplifies multiple token types into a single definition.
-//         doesn't repeat so use mirrors "ws*" syntax used in spec
+//         doesn't repeat so usage mirrors "ws*" syntax used in spec
 WS = _{ (" " | "\t" | NEWLINE) | ("/*" ~ (!"*/" ~ ANY)* ~ "*/") }
 
 // https://drafts.csswg.org/css-syntax/#non-printable-code-point

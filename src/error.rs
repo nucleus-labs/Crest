@@ -1,13 +1,11 @@
-use derive_more::From;
-
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug, From)]
+#[derive(Debug, derive_more::From)]
 pub enum Error {
     #[from]
-    CssParseError(pest::error::Error<crate::parse::CssRule>),
+    SelectorError(crate::selector::SelectorExpectError),
     #[from]
-    SelectorParseError(pest::error::Error<crate::parse::SelectorRule>),
+    CssError(crate::syntax::CssExpectError),
 
     Generic(String),
 }

@@ -69,7 +69,7 @@ SIMPLE_BLOCK = {
 // https://drafts.csswg.org/css-syntax/#function-block-diagram
 // DEVIATION: PEDANTIC
 // REASON: uses short-hand
-FUNCTION_BLOCK = { FUNCTION ~ COMPONENT_VALUE_LIST ~ ")" }
+FUNCTION_BLOCK = { FUNCTION ~ COMPONENT_VALUE_LIST? ~ ")" }
 
 /// BEGIN CONVENIENCE GRAMMAR TOKENS
 
@@ -156,7 +156,7 @@ HASH = {
     "#" ~ (
           ('0'..'9' | 'a'..'z' | 'A'..'Z' | "_" | "-" | NON_ASCII)
         | ESCAPE
-    )+
+    )
 }
 
 // https://drafts.csswg.org/css-syntax/#at-keyword-token-diagram
@@ -197,7 +197,7 @@ CDC = _{ "-->" }
 // https://drafts.csswg.org/css-syntax/#ws*-diagram
 // DEVIATION: PEDANTIC
 // REASON: simplifies multiple token types into a single definition.
-//         doesn't repeat so use mirrors "ws*" syntax used in spec
+//         doesn't repeat so usage mirrors "ws*" syntax used in spec
 WS = _{ (" " | "\t" | NEWLINE) | ("/*" ~ (!"*/" ~ ANY)* ~ "*/") }
 
 // https://drafts.csswg.org/css-syntax/#non-printable-code-point

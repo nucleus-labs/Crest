@@ -1,5 +1,4 @@
-use super::CssValue;
-use crate::parse::TokenExpected;
+use super::{CssValue, TokenExpected};
 use crate::Unit;
 
 #[derive(Debug, Clone)]

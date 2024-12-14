@@ -7,9 +7,12 @@
 //! For more information on Peacock, [click here](https://github.com/nucleus-labs/peacock)!
 //!
 
-mod parse;
+mod selector;
+mod syntax;
 
+pub(crate) mod boo;
 pub mod error;
+pub(crate) mod source;
 pub mod style;
 pub mod unit;
 
@@ -17,32 +20,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 pub use unit::Unit;
-
-#[derive(Debug, Clone)]
-pub enum AttributeSelectorType {
-    Present,          // [attr]
-    ExactMatch,       // [attr=val]
-    ListContains,     // [attr~=val]
-    StartsWith,       // [attr^=val]
-    StartsWithDashed, // [attr|=val]
-    Endswith,         // [attr$=val]
-    RawContains,      // [attr*=val]
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct SelectorNode {
-    universal: bool,
-    namespace: Option<String>,
-    type_name: Option<String>,
-
-    id: Option<String>,
-    classes: Vec<String>,
-    attributes: HashMap<String, Vec<(AttributeSelectorType, String)>>,
-
-    parent: Option<Arc<Self>>,
-    siblings: Vec<Arc<Self>>,
-    children: Vec<Arc<Self>>,
-}
 
 /// The generic implementation for document nodes.
 ///
@@ -282,7 +259,7 @@ pub trait DocumentNode {
         false
     }
 
-    fn match_selector(&self, selector: &SelectorNode) -> bool {
+    fn match_selector(&self, selector: &selector::SelectorNode) -> bool {
         if let Some(namespace) = &selector.namespace {
             if self.get_namespace() != namespace {
                 return false;
@@ -348,44 +325,34 @@ pub trait DocumentNode {
 //     }
 // }
 
-impl std::fmt::Display for SelectorNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.universal {
-            write!(f, "*");
-        } else {
-            if let Some(namespace) = &self.namespace {
-                write!(f, "{namespace}:");
-            }
-            if let Some(type_name) = &self.type_name {
-                write!(f, "{type_name}");
-            }
-            if let Some(id) = &self.id {
-                write!(f, "#{id}");
-            }
-        }
+// impl From<SelectorToken> for SelectorNode {
+//     fn from(value: SelectorToken) -> Self {
+//         assert!(matches!(value.get_rule(), SelectorRule::SELECTOR_SIMPLE));
+//         let selector = Self::default();
+//         let components = value.get_children().unwrap();
 
-        for (attr, ops) in self.attributes.iter() {
-            for (op, val) in ops.iter() {
-                match op {
-                    AttributeSelectorType::Present => write!(f, "[{attr}]"),
-                    AttributeSelectorType::ExactMatch => write!(f, "[{attr} = {val}]"),
-                    AttributeSelectorType::ListContains => write!(f, "[{attr} ~= {val}]"),
-                    AttributeSelectorType::StartsWith => write!(f, "[{attr} ^= {val}]"),
-                    AttributeSelectorType::StartsWithDashed => write!(f, "[{attr} |= {val}]"),
-                    AttributeSelectorType::Endswith => write!(f, "[{attr} $= {val}]"),
-                    AttributeSelectorType::RawContains => write!(f, "[{attr} *= {val}]"),
-                };
-            }
-        }
+//         for component in components.iter() {
+//             match component.get_rule() {
+//                 SelectorRule::SELECTOR_SIMPLE_BASIC => {
+//                     let basic_component = component.get_children().unwrap()[0];
+//                     match basic_component.get_rule() {
+//                         SelectorRule::SELECTOR_SIMPLE_BASIC_ID => todo!(),
+//                         SelectorRule::SELECTOR_SIMPLE_BASIC_CLASS => todo!(),
+//                         SelectorRule::SELECTOR_SIMPLE_BASIC_TYPE => todo!(),
+//                         SelectorRule::SELECTOR_SIMPLE_BASIC_UNIVERAL => todo!(),
+//                     }
+//                 },
+//                 SelectorRule::SELECTOR_SIMPLE_PSEUDOCLASS => {
+//                     todo!()
+//                 },
+//                 SelectorRule::SELECTOR_SIMPLE_PSEUDOELEMENT => {
+//                     todo!()
+//                 },
 
-        for class in self.classes.iter() {
-            write!(f, ".{class}");
-        }
+//                 _ => panic!("Impossible error!")
+//             }
+//         }
 
-        for child in self.children.iter() {
-            write!(f, " {child}");
-        }
-
-        Ok(())
-    }
-}
+//         selector
+//     }
+// }

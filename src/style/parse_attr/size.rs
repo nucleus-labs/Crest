@@ -1,4 +1,4 @@
-use super::CssValue;
+use super::{CssValue, TokenExpected};
 use crate::Unit;
 
 #[derive(Debug, Clone)]
@@ -51,8 +51,8 @@ impl CssValue for CssWidth {
     fn type_name() -> &'static str {
         "CssWidth"
     }
-    fn type_token() -> crate::parse::TokenExpected {
-        crate::parse::TokenExpected::Ident | crate::parse::TokenExpected::Dimension
+    fn type_token() -> TokenExpected {
+        TokenExpected::Ident | TokenExpected::Dimension
     }
 }
 
@@ -62,7 +62,7 @@ impl CssValue for CssHeight {
     fn type_name() -> &'static str {
         "CssHeight"
     }
-    fn type_token() -> crate::parse::TokenExpected {
-        crate::parse::TokenExpected::Ident | crate::parse::TokenExpected::Dimension
+    fn type_token() -> TokenExpected {
+        TokenExpected::Ident | TokenExpected::Dimension
     }
 }
