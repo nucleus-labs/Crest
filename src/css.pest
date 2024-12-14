@@ -156,7 +156,7 @@ HASH = {
     "#" ~ (
           ('0'..'9' | 'a'..'z' | 'A'..'Z' | "_" | "-" | NON_ASCII)
         | ESCAPE
-    )
+    )+
 }
 
 // https://drafts.csswg.org/css-syntax/#at-keyword-token-diagram
