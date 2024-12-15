@@ -13,17 +13,6 @@
 /// - Implements `Deref` to provide immutable access to the underlying value.
 /// - Supports conversion from both owned (`T`) and borrowed (`&'a T`) values via `From`.
 /// - Provides the `get_ref` method to retrieve a reference to the contained value.
-///
-/// # Example
-/// ```rust
-/// use crate::parse::boo::Boo;
-///
-/// let owned: Boo<'_, String> = Boo::Owned("Hello, world!".to_string());
-/// let borrowed: Boo<'_, str> = Boo::Borrowed("Hello, world!");
-///
-/// assert_eq!(&*owned, "Hello, world!");
-/// assert_eq!(&*borrowed, "Hello, world!");
-/// ```
 #[derive(Debug, Clone)]
 pub(crate) enum Boo<'a, T: Sized> {
     Borrowed(&'a T),

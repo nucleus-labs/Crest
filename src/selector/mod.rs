@@ -113,6 +113,11 @@ impl<'a> SelectorTokenTracker<'a> {
                     .ok_or(SelectorExpectError::TooFewTokens(
                         "SELECTOR_COMPOUND".into(),
                     ))?;
+
+            if !matches!(combinator_token.get_rule(), SelectorRule::SELECTOR_COMPOUND) {
+                return self.fail_type(SelectorRule::SELECTOR_COMPOUND);
+            }
+
             let next = complex_expector.expect_compound()?;
 
             let combinator: SelectorCombinator = match combinator_token.get_rule() {
@@ -212,60 +217,97 @@ impl<'a> SelectorTokenTracker<'a> {
             return self.fail_type(SelectorRule::SELECTOR_SUBCLASS);
         }
 
-        let subclass = &token.get_children().unwrap()[0];
-        match subclass.get_rule() {
+        let subclass_expector = Self::new(token).unwrap();
+        match subclass_expector.peek().unwrap().get_rule() {
             SelectorRule::SELECTOR_ID => {
-                let hash_token = &subclass.get_children().unwrap()[0];
-                let ident_token = &hash_token.get_children().unwrap()[0];
+                let ident = subclass_expector.expect_id()?;
 
                 Ok(SelectorSubclassType::Id(
-                    ident_token.get_source().to_string(),
+                    ident.to_string(),
                 ))
             }
             SelectorRule::SELECTOR_CLASS => {
-                let ident_token = &subclass.get_children().unwrap()[0];
+                let ident = subclass_expector.expect_class()?;
 
                 Ok(SelectorSubclassType::Class(
-                    ident_token.get_source().to_string(),
+                    ident.to_string(),
                 ))
             }
             SelectorRule::SELECTOR_ATTRIBUTE => {
-                let subclass_expector = Self::new(subclass).unwrap();
-
-                let ident = subclass_expector.expect_identifier()?;
-                if !subclass_expector.is_empty() {
-                    let matcher_type = subclass_expector.expect_attr_matcher()?;
-
-                    let attr_val = match subclass_expector.peek().unwrap().get_rule() {
-                        SelectorRule::STRING => subclass_expector.expect_quoted_string()?,
-                        SelectorRule::IDENT => subclass_expector.expect_identifier()?,
-
-                        _ => unreachable!(),
-                    };
-
-                    let case_sens = if subclass_expector.len() > 0 {
-                        subclass_expector.expect_attr_modifier()?
-                    } else {
-                        false
-                    };
-
-                    Ok(SelectorSubclassType::Attribute {
-                        name: ident.to_string(),
-                        attr_matcher: matcher_type,
-                        sens: case_sens,
-                    })
-                } else {
-                    Ok(SelectorSubclassType::Attribute {
-                        name: ident.to_string(),
-                        attr_matcher: SelectorAttributeType::Present,
-                        sens: false,
-                    })
-                }
+                let (name, attr_matcher, sens) = subclass_expector.expect_attribute()?;
+                Ok(SelectorSubclassType::Attribute {
+                    name: name.to_string(),
+                    attr_matcher,
+                    sens
+                })
             }
             SelectorRule::SELECTOR_PSEUDOCLASS => todo!(),
 
             _ => unreachable!(),
         }
+    }
+
+    fn expect_id(&'a self) -> SelectorResult<SourceSlice> {
+        let token: &SelectorToken = self
+            .pop_front()
+            .ok_or(SelectorExpectError::TooFewTokens("SELECTOR_ID".into()))?;
+
+        if !matches!(token.get_rule(), SelectorRule::SELECTOR_ID) {
+            return self.fail_type(SelectorRule::SELECTOR_ID);
+        }
+
+        let id_expector = Self::new(token).unwrap();
+
+        id_expector.expect_hash()
+    }
+
+    /// Consumes the next token and extracts its `SourceSlice` representation if it is a
+    /// valid hash token. Returns a `CssExpectError` otherwise.
+    pub fn expect_hash(&self) -> SelectorResult<SourceSlice> {
+        let token: &SelectorToken = self
+            .pop_front()
+            .ok_or(SelectorExpectError::TooFewTokens("HASH".into()))?;
+
+        if !matches!(token.get_rule(), SelectorRule::HASH) {
+            return self.fail_type(SelectorRule::HASH);
+        }
+
+        let mut slice = token.get_source();
+        slice.start = slice.source_info.location_from_idx(slice.start.idx + 1);
+
+        Ok(slice)
+    }
+
+    pub fn expect_class(&'a self) -> SelectorResult<SourceSlice> {
+        let token: &SelectorToken = self
+            .pop_front()
+            .ok_or(SelectorExpectError::TooFewTokens("SELECTOR_CLASS".into()))?;
+
+        if !matches!(token.get_rule(), SelectorRule::SELECTOR_CLASS) {
+            return self.fail_type(SelectorRule::SELECTOR_CLASS);
+        }
+
+        let class_expector = Self::new(token).unwrap();
+
+        class_expector.expect_identifier()
+    }
+
+    fn expect_attribute(&'a self) -> SelectorResult<(SourceSlice, SelectorAttributeType, bool)> {
+        let token: &SelectorToken = self
+            .pop_front()
+            .ok_or(SelectorExpectError::TooFewTokens("SELECTOR_ATTRIBUTE".into()))?;
+
+        if !matches!(token.get_rule(), SelectorRule::SELECTOR_ATTRIBUTE) {
+            return self.fail_type(SelectorRule::SELECTOR_ATTRIBUTE);
+        }
+
+        let attribute_expector = Self::new(token).unwrap();
+
+        let attr_name = attribute_expector.expect_identifier()?;
+        let matcher_result = attribute_expector.expect_attr_matcher().unwrap_or(SelectorAttributeType::Present);
+        let sens = attribute_expector.expect_attr_modifier().unwrap_or(false);
+
+        Ok((attr_name, matcher_result, sens))
     }
 
     fn expect_attr_matcher(&'a self) -> SelectorResult<SelectorAttributeType> {

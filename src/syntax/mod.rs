@@ -233,28 +233,29 @@ impl<'a> CssTokenTracker<'a> {
                 let mut sheet = crate::style::properties::CssStyleProperties::default();
 
                 // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION*
-                let declarations = components[1].get_children().unwrap();
-                for declaration_token in declarations.iter() {
-                    if !matches!(declaration_token.get_rule(), CssRule::DECLARATION) {
-                        return self.fail_because(CssExpectError::FailedExpectation(
-                            declaration_token.get_rule(),
-                            CssRule::DECLARATION,
-                        ));
+                if let Some(declarations) = components[1].get_children() {
+                    for declaration_token in declarations.iter() {
+                        if !matches!(declaration_token.get_rule(), CssRule::DECLARATION) {
+                            return self.fail_because(CssExpectError::FailedExpectation(
+                                declaration_token.get_rule(),
+                                CssRule::DECLARATION,
+                            ));
+                        }
+
+                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION
+                        let decl_components = declaration_token.get_children().unwrap();
+
+                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> IDENT [ source ]
+                        let decl_name = decl_components[0].get_source();
+
+                        // we ignore IMPORTANT for now
+
+                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> COMPONENT_VALUE_LIST
+                        let decl_values =
+                            Self::parse_style_attr(decl_name, &decl_components[1]).unwrap();
+
+                        sheet.update(decl_values);
                     }
-
-                    // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION
-                    let decl_components = declaration_token.get_children().unwrap();
-
-                    // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> IDENT [ source ]
-                    let decl_name = decl_components[0].get_source();
-
-                    // we ignore IMPORTANT for now
-
-                    // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> COMPONENT_VALUE_LIST
-                    let decl_values =
-                        Self::parse_style_attr(decl_name, &decl_components[1]).unwrap();
-
-                    sheet.update(decl_values);
                 }
                 Ok((selectors, sheet))
             }

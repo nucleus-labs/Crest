@@ -84,29 +84,21 @@ pub enum ExpectError {
 ///   that of the tracker.
 ///
 /// # Example Usage
-/// ```rust
-/// let tokens = vec![CssToken::Identifier("example".into())];
-/// let tracker = CssTokenTracker::new(Boo::Owned(tokens));
-///
-/// assert_eq!(tracker.len(), 1);
-/// if let Ok(identifier) = tracker.expect_identifier() {
-///     assert_eq!(identifier.as_str(), "example");
-/// }
-/// assert_eq!(tracker.len(), 0); // Token has been "consumed".
-/// ```
+/// For examples on usage, see `crate::selector::SelectorTokenTracker` or
+/// `crate::syntax::CssTokenTracker`.
 #[derive(Debug, Clone)]
 pub struct TokenTracker<'a, R: RuleType> {
-    /// A `Boo` wrapper around a `Vec<CssToken>`. Neither `Boo` nor `CssTokenTracker` guarantee
-    /// that the contained vec is owned by a `CssTokenTracker`, but the design of `CssTokenTracker`
+    /// A `Boo` wrapper around a `Vec<ParserToken<R>>`. Neither `Boo` nor `TokenTracker` guarantee
+    /// that the contained vec is owned by a `TokenTracker`, but the design of `TokenTracker`
     /// assumes that any `boo` field adheres to this contract.
     ///
     /// The `boo` field enables the use of either owned or borrowed tokens, reducing
     /// redundancy in parsing implementations. It is essential that this field is only
-    /// initialized within `CssTokenTracker` or similar contexts that maintain this contract.
+    /// initialized within `TokenTracker` or similar contexts that maintain this contract.
     ///
     /// ## Notes:
     /// - Any modifications to the `boo` field should only occur within the
-    ///   `CssTokenTracker` implementation to ensure the contract remains valid.
+    ///   `TokenTracker` implementation to ensure the contract remains valid.
     /// - This abstraction avoids the need for separate types (e.g., `TokenTrackerBorrowed`)
     ///   by enabling flexible token ownership semantics.
     ///
@@ -128,6 +120,31 @@ pub struct TokenTracker<'a, R: RuleType> {
 ///
 /// ## Asserts
 /// ```rust
+/// fn floored_binary_index(arr: &[usize], item: usize) -> Option<usize> {
+///     let length = arr.len();
+/// 
+///     if item < arr[0] || item > arr[length - 1] {
+///         return None;
+///     }
+/// 
+///     let mut left = 0;
+///     let mut right = length - 1;
+///     let mut middle = length / 2;
+/// 
+///     let mut current = arr[middle];
+///     while left <= right {
+///         match current.cmp(&item) {
+///             std::cmp::Ordering::Less => left = middle + 1,
+///             std::cmp::Ordering::Equal => return Some(middle),
+///             std::cmp::Ordering::Greater => right = middle - 1,
+///         }
+///         middle = (right + left) / 2;
+///         current = arr[middle];
+///     }
+/// 
+///     Some(middle)
+/// }
+/// 
 /// assert!(floored_binary_index(&[1, 3, 5, 9, 15], 0).is_none(), "Should fail because 0 is out of the range 0-15");
 /// assert!(floored_binary_index(&[1, 3, 5, 9, 15], 16).is_none(), "Should fail because 16 is out of the range 0-15");
 ///
