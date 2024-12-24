@@ -1,3 +1,5 @@
+use crate::source::SourceSlice;
+
 use super::{SelectorNode, SelectorRule, SelectorToken};
 
 #[derive(Debug, Clone)]
@@ -16,7 +18,6 @@ pub enum SelectorCombinator {
     SubsequentSibling(SelectorNode),
     NextSibling(SelectorNode),
     Descendent(SelectorNode),
-    Namespace(SelectorNode),
     Column(SelectorNode),
     Child(SelectorNode),
 }
@@ -28,10 +29,10 @@ pub(crate) enum SelectorSubclassType {
     Attribute {
         name: String,
         attr_matcher: SelectorAttributeType,
-        sens: bool,
+        case_sensitive: bool,
     },
-    PseudoClass,
-    PseudoElement,
+    PseudoClass(String),
+    PseudoElement(String, Option<Box<[crate::Unit]>>),
 }
 
 #[derive(Debug, Clone, derive_more::From)]
@@ -45,3 +46,15 @@ pub(crate) enum SelectorExpectError {
 }
 
 pub type SelectorResult<T> = Result<T, SelectorExpectError>;
+
+impl SelectorCombinator {
+    pub fn get_node<'a>(&'a mut self) -> &'a mut SelectorNode {
+        match self {
+            SelectorCombinator::SubsequentSibling(selector_node) => selector_node,
+            SelectorCombinator::NextSibling(selector_node) => selector_node,
+            SelectorCombinator::Descendent(selector_node) => selector_node,
+            SelectorCombinator::Column(selector_node) => selector_node,
+            SelectorCombinator::Child(selector_node) => selector_node,
+        }
+    }
+}

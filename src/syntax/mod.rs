@@ -8,16 +8,21 @@ use std::collections::HashMap;
 use std::num::ParseFloatError;
 use std::sync::Arc;
 
-use crate::boo::Boo;
 use crate::selector::{
     self, SelectorExpectError, SelectorNode, SelectorParser, SelectorRule, SelectorTokenTracker,
 };
-use crate::source::{parse_source, SourceSlice, StackInfo, TokenTracker};
+
 use crate::style::{
-    parse_attr::{types as ValueTypes, CssAttributeValue, CssStyleAttribute, CssValue},
+    prop_validation::{types as ValueTypes, CssAttributeValue, CssStyleAttribute, CssValue},
     AtRule, CssStyleProperties, CssStyleValueExpector, Stylesheet,
 };
-use crate::unit::Dimension;
+
+use crate::boo::Boo;
+use crate::source::{
+    parse_source, SourceInfo, SourceLocation, SourceSlice, StackInfo, TokenTracker,
+};
+use crate::style::properties::CssStyleProperty;
+use crate::unit::{Dimension, Unit};
 
 pub(crate) type CssStackInfo = StackInfo<CssRule>;
 pub(crate) type CssToken = crate::source::ParserToken<CssRule>;
@@ -25,7 +30,7 @@ pub(crate) type CssToken = crate::source::ParserToken<CssRule>;
 pub type CssResult<T> = Result<T, CssExpectError>;
 
 #[derive(Debug, Clone, derive_more::From)]
-pub(crate) enum CssExpectError {
+pub enum CssExpectError {
     #[from]
     ParseError(pest::error::Error<CssRule>),
     #[from]
@@ -35,7 +40,7 @@ pub(crate) enum CssExpectError {
     FailedExpectation(CssRule, CssRule),
     InvalidStyleAttrName(SourceSlice),
     InvalidAtRuleName(SourceSlice),
-    InvalidAttributeValue(String),
+    InvalidAttributeValue(SourceLocation, String),
 
     #[from]
     InvalidNumber(ParseFloatError),
@@ -55,14 +60,14 @@ pub struct CssAtRuleValueExpector<'a> {
 
 impl<'a> CssTokenTracker<'a> {
     #[inline]
-    pub fn new(css_token: &'a CssToken) -> CssTokenTracker<'a> {
-        Self(TokenTracker::new(Boo::Borrowed(
-            css_token.get_children().unwrap(),
-        )))
+    pub fn new(css_token: &'a CssToken) -> Option<CssTokenTracker<'a>> {
+        css_token
+            .get_children()
+            .map(|x| Self(TokenTracker::new(Boo::Borrowed(x))))
     }
 
     #[inline]
-    fn from_vec(vec: &'a Vec<CssToken>) -> Self {
+    pub fn from_vec(vec: &'a Vec<CssToken>) -> Self {
         Self(TokenTracker::new(Boo::Borrowed(vec)))
     }
 
@@ -75,55 +80,65 @@ impl<'a> CssTokenTracker<'a> {
 
     fn parse_style_attr(
         attr_name: SourceSlice,
-        component_value_list: &'a CssToken,
+        declaration_groups_token: &'a CssToken,
     ) -> CssResult<Box<[CssStyleAttribute]>> {
-        let css_expector: CssTokenTracker<'a> = Self::new(component_value_list);
+        let name = attr_name.get();
 
-        match attr_name.get() {
-            "width" => CssStyleValueExpector::new(&css_expector)
+        match name {
+            "color" => CssStyleValueExpector::new(declaration_groups_token)
+                .expect::<ValueTypes::CssColor>()
+                .resolve(),
+            "background-color" => CssStyleValueExpector::new(declaration_groups_token)
+                .expect::<ValueTypes::CssBackgroundColor>()
+                .resolve(),
+            "width" => CssStyleValueExpector::new(declaration_groups_token)
                 .expect::<ValueTypes::CssWidth>()
                 .resolve(),
 
-            "height" => CssStyleValueExpector::new(&css_expector)
+            "height" => CssStyleValueExpector::new(declaration_groups_token)
                 .expect::<ValueTypes::CssHeight>()
                 .resolve(),
 
-            "padding" => CssStyleValueExpector::new(&css_expector)
+            "padding" => CssStyleValueExpector::new(declaration_groups_token)
                 .expect::<ValueTypes::CssPadding>()
-                .expect::<ValueTypes::CssPadding>()
-                .expect::<ValueTypes::CssPadding>()
-                .expect::<ValueTypes::CssPadding>()
+                .optional::<ValueTypes::CssPadding>()
+                .optional::<ValueTypes::CssPadding>()
+                .optional::<ValueTypes::CssPadding>()
                 .resolve(),
 
-            "spacing" => CssStyleValueExpector::new(&css_expector)
+            "spacing" => CssStyleValueExpector::new(declaration_groups_token)
                 .expect::<ValueTypes::CssSpacing>()
-                .expect::<ValueTypes::CssSpacing>()
-                .expect::<ValueTypes::CssSpacing>()
-                .expect::<ValueTypes::CssSpacing>()
+                .optional::<ValueTypes::CssSpacing>()
+                .optional::<ValueTypes::CssSpacing>()
+                .optional::<ValueTypes::CssSpacing>()
                 .resolve(),
 
             "font-family" => todo!(),
-            "font-size" => todo!(),
+            "font-size" => CssStyleValueExpector::new(declaration_groups_token)
+                .expect::<ValueTypes::CssFontSize>()
+                .resolve(),
             "font-shaping" => todo!(),
 
-            "line-height" => todo!(),
+            "line-height" => CssStyleValueExpector::new(declaration_groups_token)
+                .expect::<ValueTypes::CssLineHeight>()
+                .resolve(),
 
             "text-wrap" => todo!(),
 
-            "max-width" => todo!(),
-            "max-height" => todo!(),
+            "max-width" => CssStyleValueExpector::new(declaration_groups_token)
+                .expect::<ValueTypes::CssMaxWidth>()
+                .resolve(),
+            "max-height" => CssStyleValueExpector::new(declaration_groups_token)
+                .expect::<ValueTypes::CssMaxHeight>()
+                .resolve(),
 
             "justify-content" => todo!(),
-            "vertical-align" => todo!(),
+            "vertical-align" => CssStyleValueExpector::new(declaration_groups_token)
+                .expect::<ValueTypes::CssVerticalAlign>()
+                .resolve(),
 
-            "overflow" => todo!(),
-
-            "margin" => todo!(),
-
-            "left" => todo!(),
-            "right" => todo!(),
-            "top" => todo!(),
-            "bottom" => todo!(),
+            "overflow-x" => todo!(),
+            "overflow-y" => todo!(),
 
             "object-fit" => todo!(),
 
@@ -131,7 +146,49 @@ impl<'a> CssTokenTracker<'a> {
             "rotation" => todo!(),
             "opacity" => todo!(),
 
-            _ => Err(CssExpectError::InvalidStyleAttrName(attr_name)),
+            _ => {
+                let prop_name = name.to_string();
+                let mut prop_groups: Vec<Vec<Unit>> = Vec::new();
+
+                for decl_group in declaration_groups_token.get_children().unwrap().iter() {
+                    let decl_values = decl_group.get_children().unwrap();
+                    let mut prop_values: Vec<Unit> = Vec::new();
+
+                    for decl_value in decl_values.iter() {
+                        if matches!(decl_value.get_rule(), CssRule::DECLARATION_SHORTHAND) {
+                        } else {
+                            // DECLARATION_VALUE
+                            let next_token = &decl_value.get_children().unwrap()[0];
+                            // println!("{prop_name}: {:?} -> {:?} -> {:?} -> {:?}", declaration_groups_token.get_rule(), decl_group.get_rule(), decl_value.get_rule(), next_token.get_rule());
+                            let component_expector = Self::new(next_token)
+                                .ok_or(CssExpectError::TooFewTokens(format!(
+                                    "COMPONENT_VALUE [ {} ]",
+                                    next_token.get_source()
+                                )))
+                                .unwrap();
+
+                            let component_rule = next_token.get_children().unwrap()[0].get_rule();
+                            match component_rule {
+                                CssRule::SIMPLE_BLOCK | CssRule::FUNCTION_BLOCK => todo!("unknown values such as {prop_name} do not currently support SIMPLE_BLOCK or FUNCTION_BLOCK value types"),
+
+                                CssRule::DIMENSION => prop_values.push(component_expector.expect_dimension()?.into()),
+                                CssRule::NUMBER => prop_values.push(component_expector.expect_number()?.into()),
+                                CssRule::IDENT => prop_values.push(Unit::UnknownIdent(component_expector.expect_identifier()?.to_string())),
+                                CssRule::STRING => prop_values.push(component_expector.expect_quoted_string()?.to_string().into()),
+                                CssRule::HASH => prop_values.push(Unit::Hash(component_expector.expect_hash()?.to_string().into())),
+                                CssRule::PERCENTAGE => prop_values.push(Unit::Percentage(component_expector.expect_percentage()?.into())),
+
+                                _ => unreachable!(),
+                            }
+                        }
+                    }
+
+                    prop_groups.push(prop_values);
+                }
+
+                let result_vec = vec![CssStyleAttribute::UnknownProperty(prop_name, prop_groups)];
+                Ok(result_vec.into_boxed_slice())
+            }
         }
     }
 
@@ -140,7 +197,7 @@ impl<'a> CssTokenTracker<'a> {
         attr_name: SourceSlice,
         component_value_list: &'a CssToken,
     ) -> CssResult<Box<[CssStyleAttribute]>> {
-        let css_expector: CssTokenTracker<'a> = Self::new(component_value_list);
+        let css_expector: CssTokenTracker<'a> = Self::new(component_value_list).unwrap();
         match attr_name.get() {
             _ => Err(CssExpectError::InvalidAtRuleName(attr_name)),
         }
@@ -155,7 +212,7 @@ impl<'a> CssTokenTracker<'a> {
             return self.fail_type(CssRule::STYLESHEET);
         }
 
-        let rule_expector = Self::new(token);
+        let rule_expector = Self::new(token).unwrap();
 
         let mut at_rules: HashMap<String, AtRule> = HashMap::new();
         let mut style_rules: Vec<(SelectorNode, CssStyleProperties)> = Vec::new();
@@ -216,15 +273,12 @@ impl<'a> CssTokenTracker<'a> {
         // QUALIFIED_RULE -> SELECTOR
         let selector_slice: SourceSlice = components[0].get_source();
         let selector_parser_result = parse_source::<SelectorRule, SelectorParser>(
-            selector_slice.get(),
+            SourceInfo::new(selector_slice.get().into()),
             SelectorRule::SELECTOR_LIST,
         );
 
-        let selector_parser = match selector_parser_result {
-            Ok(val) => val,
-            Err(err) => return Err(CssExpectError::InvalidSelector(err.into())),
-        };
-
+        let selector_parser =
+            selector_parser_result.map_err(|err| CssExpectError::InvalidSelector(err.into()))?;
         let selector_vec = vec![selector_parser];
         let selector_expector = SelectorTokenTracker::from_vec(&selector_vec);
 
@@ -248,25 +302,69 @@ impl<'a> CssTokenTracker<'a> {
                         // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> IDENT [ source ]
                         let decl_name = decl_components[0].get_source();
 
-                        // we ignore IMPORTANT for now
-
-                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> COMPONENT_VALUE_LIST
+                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> DECLARATION_VALUES
                         let decl_values =
                             Self::parse_style_attr(decl_name, &decl_components[1]).unwrap();
 
-                        sheet.update(decl_values);
+                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> IMPORTANT
+                        let important = decl_components.len() > 2;
+
+                        sheet.push((
+                            CssStyleProperty::from_attribute_values(decl_values),
+                            important,
+                        ));
                     }
                 }
                 Ok((selectors, sheet))
             }
-            Err(selector_err) => {
-                self.fail_because(CssExpectError::InvalidSelector(selector_err))
-            },
+            Err(selector_err) => self.fail_because(CssExpectError::InvalidSelector(selector_err)),
         }
     }
 
-    pub fn expect_component_values(&self) -> CssResult<Self> {
-        todo!()
+    pub fn expect_component_values(&'a self) -> CssResult<Vec<Unit>> {
+        let token: &CssToken = self
+            .pop_front()
+            .ok_or(CssExpectError::TooFewTokens("COMPONENT_VALUE_LIST".into()))?;
+
+        if !matches!(token.get_rule(), CssRule::COMPONENT_VALUE_LIST) {
+            return self.fail_type(CssRule::COMPONENT_VALUE_LIST);
+        }
+
+        let values_expector = Self::new(token).unwrap();
+        let mut values: Vec<Unit> = Vec::new();
+
+        while let Ok(unit) = values_expector.expect_component_value() {
+            values.push(unit);
+        }
+
+        Ok(values)
+    }
+
+    pub fn expect_component_value(&'a self) -> CssResult<Unit> {
+        let token: &CssToken = self
+            .pop_front()
+            .ok_or(CssExpectError::TooFewTokens("COMPONENT_VALUE".into()))?;
+
+        if !matches!(token.get_rule(), CssRule::COMPONENT_VALUE) {
+            return self.fail_type(CssRule::COMPONENT_VALUE);
+        }
+
+        let value_expector = Self::new(token).ok_or_else(|| {
+            panic!("Failed to create am expector from '{}'", token.get_source())
+        }).unwrap();
+
+        match value_expector.peek().unwrap().get_rule() {
+            CssRule::SIMPLE_BLOCK | CssRule::FUNCTION_BLOCK => todo!("component values do not currently support SIMPLE_BLOCK or FUNCTION_BLOCK value types"),
+
+            CssRule::DIMENSION => Ok(value_expector.expect_dimension()?.into()),
+            CssRule::NUMBER => Ok(value_expector.expect_number()?.into()),
+            CssRule::IDENT => Ok(Unit::UnknownIdent(value_expector.expect_identifier()?.to_string())),
+            CssRule::STRING => Ok(value_expector.expect_quoted_string()?.to_string().into()),
+            CssRule::HASH => Ok(Unit::Hash(value_expector.expect_hash()?.to_string().into())),
+            CssRule::PERCENTAGE => Ok(Unit::Percentage(value_expector.expect_percentage()?.into())),
+
+            _ => unreachable!(),
+        }
     }
 
     /// Consumes the next token and extracts its `SourceSlice` representation if it is a valid
@@ -311,7 +409,10 @@ impl<'a> CssTokenTracker<'a> {
             return self.fail_type(CssRule::PERCENTAGE);
         }
 
-        match token.get_source().parse::<f32>() {
+        let mut slice = token.get_source();
+        slice.end = slice.source_info.location_from_idx(slice.end.idx - 1);
+
+        match slice.parse::<f32>() {
             Ok(num) => Ok(num),
             Err(err) => Err(err.into()),
         }
@@ -403,7 +504,7 @@ impl<'a> CssTokenTracker<'a> {
 
     /// Consumes the next token and extracts its function identifier along with a `CssTokenTracker`
     /// for its arguments if it is a valid function token. Returns an `CssExpectError` otherwise.
-    pub fn expect_function_block(&'a self) -> CssResult<(SourceSlice, Option<Self>)> {
+    pub fn expect_function_block(&'a self) -> CssResult<(SourceSlice, Vec<Unit>)> {
         let token: &CssToken = self
             .pop_front()
             .ok_or(CssExpectError::TooFewTokens("FUNCTION_BLOCK".into()))?;
@@ -412,14 +513,19 @@ impl<'a> CssTokenTracker<'a> {
             return self.fail_type(CssRule::FUNCTION_BLOCK);
         }
 
-        let function_expector: CssTokenTracker<'a> = Self::new(token);
+        let function_expector: CssTokenTracker<'a> = Self::new(token).unwrap();
         let name = function_expector.expect_function()?;
 
         if !function_expector.is_empty() {
-            let params = function_expector.expect_component_values()?;
-            Ok((name, Some(params)))
+            let mut params: Vec<Unit> = Vec::new();
+    
+            while let Ok(unit) = function_expector.expect_component_value() {
+                params.push(unit);
+            }
+
+            Ok((name, params))
         } else {
-            Ok((name, None))
+            Ok((name, Vec::new()))
         }
     }
 
@@ -432,7 +538,7 @@ impl<'a> CssTokenTracker<'a> {
             return self.fail_type(CssRule::FUNCTION);
         }
 
-        Self::new(token).expect_identifier()
+        Self::new(token).unwrap().expect_identifier()
     }
 }
 
@@ -455,12 +561,13 @@ impl<'a> CssAtRuleValueExpector<'a> {
 
         match T::parse(self.css_expector) {
             Ok(attr_val) => self.results.push(Ok(attr_val.into())),
-            Err(err) => {
+            Err(source) => {
                 self.has_errored = true;
-                let expect_err = CssExpectError::InvalidAttributeValue(format!(
-                    "Failed to parse type {} from '{err}'",
-                    T::type_name()
-                ));
+
+                let expect_err = CssExpectError::InvalidAttributeValue(
+                    self.css_expector.get_location().unwrap().start,
+                    format!("Failed to parse type {} from '{source}'", T::type_name()),
+                );
                 self.results.push(Err(expect_err));
             }
         }

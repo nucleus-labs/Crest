@@ -3,6 +3,9 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Debug, derive_more::From)]
 pub enum Error {
     #[from]
+    FsError(std::io::Error),
+
+    #[from]
     SelectorError(crate::selector::SelectorExpectError),
     #[from]
     CssError(crate::syntax::CssExpectError),

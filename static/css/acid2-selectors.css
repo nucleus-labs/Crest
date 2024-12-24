@@ -9,8 +9,8 @@ body {}
 .intro {}
 .intro * {}
 .intro h1 {}
-/* .intro :link {} */
-/* .intro :visited {} */
+.intro :link {}
+.intro :visited {}
 
 /* picture setup */
 #top {} /* "Hello World!" text */
@@ -56,11 +56,11 @@ body {}
 .nose {}
 .nose > div {}
 .nose div div {}
-/* .nose :hover div {} */
-/* .nose div:hover :before {} */
-/* .nose div:hover :after {} */
-/* .nose div div:before {} */
-/* .nose div    :after {} */
+.nose :hover div {}
+.nose div:hover :before {}
+.nose div:hover :after {}
+.nose div div:before {}
+.nose div    :after {}
 
 /* between lines nine and ten: margin collapsing with 'float' and 'clear' */
 .empty {}

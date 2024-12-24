@@ -15,6 +15,10 @@
       in
       {
         devShells.default = with pkgs; mkShell {
+          packages = [
+            linuxKernel.packages.linux_zen.perf
+            valgrind-light
+          ];
           buildInputs = [
             rust-bin.stable.latest.default
           ];

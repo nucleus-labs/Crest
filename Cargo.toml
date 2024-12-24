@@ -17,5 +17,13 @@ strum_macros = "0.26.4"
 criterion = "0.5.1"
 
 [[bench]]
-name = "css"
+name = "gen"
 harness = false
+
+[[bench]]
+name = "acid"
+harness = false
+
+# [[bench]]
+# name = "bootstrap"
+# harness = false

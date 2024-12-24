@@ -8,11 +8,11 @@
 //!
 
 mod selector;
-pub mod syntax;
 
-pub mod source;
 pub(crate) mod boo;
 
+pub mod source;
+pub mod syntax;
 pub mod error;
 pub mod style;
 pub mod unit;
@@ -20,12 +20,15 @@ pub mod unit;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+pub use selector::{SelectorNode, SelectorNodeType};
+pub use style::{CssAttributeValue, CssStyleAttribute, CssStyleProperties, CssValue, Stylesheet};
+pub use source::SourceInfo;
 pub use unit::Unit;
 
 /// The generic implementation for document nodes.
 ///
 /// Used for selector matching and applying style properties
-pub trait DocumentNode {
+pub trait DomElement {
     /* required functions */
 
     /// the element's namespace
@@ -260,22 +263,10 @@ pub trait DocumentNode {
         false
     }
 
-    fn match_selector(&self, selector: &selector::SelectorNode) -> bool {
-        if let Some(namespace) = &selector.namespace {
-            if self.get_namespace() != namespace {
-                return false;
-            }
-        }
+    fn match_selector(&self, selectors: &selector::SelectorNode) -> bool {
+        // for selector in selectors.iter() {
 
-        if selector.universal {
-            return true;
-        }
-
-        if let Some(type_name) = &selector.type_name {
-            if self.get_type() != type_name {
-                return false;
-            }
-        }
+        // }
 
         todo!()
     }

@@ -6,11 +6,11 @@
 
 /// BEGIN CONVENIENCE PARSER RULES
 
-CSS = { WS* ~ STYLESHEET ~ WS* ~ EOI }
+CSS = { STYLESHEET ~ EOI }
 
 SELECTOR = { SELECTOR_REPR }
 
-SELECTOR_REPR = _{ (PRESERVED_TOKEN | SIMPLE_BLOCK)+ }
+SELECTOR_REPR = _{ (SELECTOR_COMBINATORS | SIMPLE_BLOCK | FUNCTION_BLOCK | PRESERVED_TOKEN)+ }
 
 COMPONENT_VALUE_LIST = { (COMPONENT_VALUE ~ WS*)+ }
 // COMPONENT_VALUE_LIST = { (COMPONENT_VALUE ~ WS* ~ "," ~ WS*)+ }
@@ -32,30 +32,34 @@ AT_RULE = { AT_KEYWORD ~ COMPONENT_VALUE_LIST? ~ (DECL_BLOCK | ";") }
 QUALIFIED_RULE = { WS* ~ SELECTOR ~ WS* ~ DECL_BLOCK }
 
 // https://drafts.csswg.org/css-syntax/#declaration-list-diagram
-// DEVIATION: COMPLIANT
+// COMPLIANT
 DECL_BLOCK = { "{" ~ WS* ~ (
         ( (DECLARATION ~ WS* ~ ";") | AT_RULE | QUALIFIED_RULE ) ~ WS*
     )* ~ WS* ~ "}"
 }
 
 // https://drafts.csswg.org/css-syntax/#declaration-diagram
-// DEVIATION: PEDANTIC
-// REASON: more specific whitespace constraints than given by the spec
+// UNCOMPLIANT
+// REASON: Abstracts declaration value groupings for easier parsing
 DECLARATION = {
-    IDENT ~ WS* ~ ":" ~ WS* ~ (
-        (!WS ~ COMPONENT_VALUE ~ WS*)
-    )+
-    ~ (WS+ ~ IMPORTANT)?
+    IDENT ~ WS* ~ ":" ~ WS* ~ DECLARATION_GROUPS ~ (WS+ ~ IMPORTANT)?
 }
+DECLARATION_GROUPS = { DECLARATION_VALUES ~ (WS* ~ "," ~ WS* ~ DECLARATION_VALUES)* }
+DECLARATION_VALUES = {
+      (DECLARATION_SHORTHAND | DECLARATION_VALUE)
+    ~ (WS+ ~ (DECLARATION_SHORTHAND | DECLARATION_VALUE))*
+}
+DECLARATION_SHORTHAND = { DECLARATION_VALUE ~ WS* ~ "/" ~ WS* ~ DECLARATION_VALUE }
+DECLARATION_VALUE = { !WS ~ !"," ~ COMPONENT_VALUE }
 
 // https://drafts.csswg.org/css-syntax/#!important-diagram
 // COMPLIANT
-IMPORTANT = { "!" ~ WS* ~ "important" ~ WS* }
+IMPORTANT = { "!important" }
 
 // https://drafts.csswg.org/css-syntax/#component-value-diagram
 // WEAKLY COMPLIANT
 // REASON: uses concrete representation of an abstract definition (PRESERVED_TOKEN)
-COMPONENT_VALUE = { PRESERVED_TOKEN | SIMPLE_BLOCK | FUNCTION_BLOCK }
+COMPONENT_VALUE = { PRESERVED_TOKEN | SIMPLE_BLOCK | FUNCTION_BLOCK | SELECTOR }
 
 // https://drafts.csswg.org/css-syntax/#simple-block-diagram
 // DEVIATION: PEDANTIC
@@ -69,7 +73,11 @@ SIMPLE_BLOCK = {
 // https://drafts.csswg.org/css-syntax/#function-block-diagram
 // DEVIATION: PEDANTIC
 // REASON: uses short-hand
-FUNCTION_BLOCK = { FUNCTION ~ COMPONENT_VALUE_LIST? ~ ")" }
+FUNCTION_BLOCK = {
+      FUNCTION
+    ~ (COMPONENT_VALUE ~ (WS* ~ "," ~ WS* ~ COMPONENT_VALUE)*)*
+    ~ ")"
+}
 
 /// BEGIN CONVENIENCE GRAMMAR TOKENS
 
@@ -97,20 +105,23 @@ SELECTOR_COMBINATORS = _{
     | "~"
     | " "
     | "|"
+    | ":"
+    | ","
 }
 
 PRESERVED_TOKEN = _{ !FUNCTION ~ !"{" ~ !"(" ~ !"[" ~ !";" ~ (
       DIMENSION
+    | PERCENTAGE
     | NUMBER
     | IDENT
     | STRING
-    | URL
     | HASH
+    | URL
     | CLASS
     | WILDCARD
     | WS
-    | SELECTOR_COMBINATORS
     | ATTRIBUTE_OPERATOR
+    // | ","
 )}
 
 /// BEGIN CSS GRAMMAR TOKENS SPEC
@@ -129,7 +140,7 @@ NUMBER = { ("+" | "-")? ~ ((ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+) | ASCII_DIGIT+ | 
 
 // https://drafts.csswg.org/css-syntax/#url-token-diagram
 // DEVIATION: UNCOMPLIANT
-// REASON: allows a quoted or un-quoted url
+// REASON: allows a quoted or un-quoted url rather than only an unquoted url
 URL = { "url(" ~ WS* ~ (STRING | UNQUOTED_URL)? ~ WS* ~ ")" }
 
 // https://drafts.csswg.org/css-syntax/#string-token-diagram

@@ -1,38 +1,46 @@
 mod pest_selector;
 mod types;
 
-pub use pest_selector::Rule as SelectorRule;
 pub use types::{SelectorAttributeType, SelectorCombinator, SelectorResult};
+pub use pest_selector::Rule as SelectorRule;
 
-pub(crate) use pest_selector::SelectorParser;
 pub(crate) use types::{SelectorExpectError, SelectorSubclassType};
+pub(crate) use pest_selector::SelectorParser;
 
-use std::cell::Cell;
 use std::collections::HashMap;
+use std::cell::Cell;
 use std::sync::Arc;
 
-use crate::boo::Boo;
-use crate::source::{ParserToken, SourceSlice, StackInfo, TokenTracker};
+use crate::source::{parse_source, ParserToken, SourceInfo, SourceSlice, StackInfo, TokenTracker};
 use crate::syntax::CssToken;
+use crate::boo::Boo;
+use crate::Unit;
 
 pub(crate) type SelectorToken = ParserToken<SelectorRule>;
 pub(crate) type SelectorStackInfo = StackInfo<SelectorRule>;
 
-#[derive(Debug, Clone, Default)]
-pub struct SelectorNode {
-    pub universal: bool,
-    pub namespace: Option<String>,
-    pub type_name: Option<String>,
-
-    pub id: Option<String>,
-    pub classes: Vec<String>,
-    pub attributes: HashMap<String, Vec<(SelectorAttributeType, bool)>>,
-
-    pub parent: Option<Arc<Self>>,
-    pub siblings: Vec<Arc<Self>>,
-    pub children: Vec<Arc<Self>>,
-    pub descendents: Vec<Arc<Self>>,
+#[derive(Debug, Clone)]
+pub enum SelectorNodeType {
+    Universal,
+    Namespace(String),
+    TypeName(String),
+    Id(String),
+    Class(String),
+    Attribute {
+        name: String,
+        attr_matcher: SelectorAttributeType,
+        case_sensitive: bool,
+    },
+    NextSibling(Box<SelectorNode>),
+    SubsequentSibling(Box<SelectorNode>),
+    Child(Box<SelectorNode>),
+    Descendent(Box<SelectorNode>),
+    PseudoClass(String),
+    PseudoElement(String, Option<Box<[Unit]>>),
 }
+
+#[derive(Debug, Clone, Default)]
+pub struct SelectorNode(Vec<SelectorNodeType>);
 
 #[derive(Debug, Clone)]
 pub struct SelectorTokenTracker<'a>(crate::source::TokenTracker<'a, SelectorRule>);
@@ -75,18 +83,47 @@ impl<'a> SelectorTokenTracker<'a> {
 
         let mut selectors: Vec<SelectorNode> = Vec::new();
 
-        while let Ok((selector, combinators)) = list_expector.expect_complex() {
-            for combination in combinators.iter() {
-                match combination {
-                    SelectorCombinator::SubsequentSibling(selector_node) => todo!(),
-                    SelectorCombinator::NextSibling(selector_node) => todo!(),
-                    SelectorCombinator::Descendent(selector_node) => todo!(),
-                    SelectorCombinator::Namespace(selector_node) => todo!(),
+        while let Ok((mut first, mut rest)) = list_expector.expect_complex() {
+            while rest.len() > 1 {
+                let combinator = rest.pop().unwrap();
+                let prev = rest.last_mut().unwrap().get_node();
+                match combinator {
+                    SelectorCombinator::SubsequentSibling(selector_node) => {
+                        prev.push(SelectorNodeType::SubsequentSibling(Box::new(selector_node)))
+                    }
+                    SelectorCombinator::NextSibling(selector_node) => {
+                        prev.push(SelectorNodeType::NextSibling(Box::new(selector_node)))
+                    }
+                    SelectorCombinator::Descendent(selector_node) => {
+                        prev.push(SelectorNodeType::Descendent(Box::new(selector_node)))
+                    }
                     SelectorCombinator::Column(selector_node) => todo!(),
-                    SelectorCombinator::Child(selector_node) => todo!(),
+                    SelectorCombinator::Child(selector_node) => {
+                        prev.push(SelectorNodeType::Child(Box::new(selector_node)))
+                    }
                 }
             }
-            selectors.push(selector);
+
+            if !rest.is_empty() {
+                let combinator = rest.pop().unwrap();
+                match combinator {
+                    SelectorCombinator::SubsequentSibling(selector_node) => {
+                        first.push(SelectorNodeType::SubsequentSibling(Box::new(selector_node)))
+                    }
+                    SelectorCombinator::NextSibling(selector_node) => {
+                        first.push(SelectorNodeType::NextSibling(Box::new(selector_node)))
+                    }
+                    SelectorCombinator::Descendent(selector_node) => {
+                        first.push(SelectorNodeType::Descendent(Box::new(selector_node)))
+                    }
+                    SelectorCombinator::Column(selector_node) => todo!(),
+                    SelectorCombinator::Child(selector_node) => {
+                        first.push(SelectorNodeType::Child(Box::new(selector_node)))
+                    }
+                }
+            }
+
+            selectors.push(first);
         }
 
         Ok(selectors.into_boxed_slice())
@@ -106,38 +143,43 @@ impl<'a> SelectorTokenTracker<'a> {
         let first = complex_expector.expect_compound()?;
         let mut rest: Vec<SelectorCombinator> = Vec::new();
 
-        while !complex_expector.is_empty() {
-            let combinator_token: &SelectorToken =
-                complex_expector
-                    .pop_front()
-                    .ok_or(SelectorExpectError::TooFewTokens(
-                        "SELECTOR_COMPOUND".into(),
-                    ))?;
+        while let Some(peek) = complex_expector.peek() {
+            match peek.get_rule() {
+                SelectorRule::SELECTOR_COMBINATOR => {
+                    let combinator_token = complex_expector.pop_front().unwrap();
 
-            if !matches!(combinator_token.get_rule(), SelectorRule::SELECTOR_COMPOUND) {
-                return self.fail_type(SelectorRule::SELECTOR_COMPOUND);
-            }
+                    let next = complex_expector.expect_compound()?;
 
-            let next = complex_expector.expect_compound()?;
+                    let combinator_components = combinator_token.get_children().unwrap();
+                    let combinator: SelectorCombinator = match combinator_components[0].get_rule() {
+                        SelectorRule::SELECTOR_COMBINATOR__NEXT_SIBLING => {
+                            SelectorCombinator::NextSibling(next)
+                        }
+                        SelectorRule::SELECTOR_COMBINATOR__CHILD => SelectorCombinator::Child(next),
+                        SelectorRule::SELECTOR_COMBINATOR__COLUMN => {
+                            SelectorCombinator::Column(next)
+                        }
+                        SelectorRule::SELECTOR_COMBINATOR__SUBSEQUENT_SIBLING => {
+                            SelectorCombinator::SubsequentSibling(next)
+                        }
+                        SelectorRule::SELECTOR_COMBINATOR__DESCENDENT => {
+                            SelectorCombinator::Descendent(next)
+                        }
 
-            let combinator: SelectorCombinator = match combinator_token.get_rule() {
-                SelectorRule::SELECTOR_COMBINATOR__NEXT_SIBLING => {
-                    SelectorCombinator::NextSibling(next)
+                        _ => unreachable!(),
+                    };
+
+                    rest.push(combinator);
                 }
-                SelectorRule::SELECTOR_COMBINATOR__CHILD => SelectorCombinator::Child(next),
-                SelectorRule::SELECTOR_COMBINATOR__COLUMN => SelectorCombinator::Column(next),
-                SelectorRule::SELECTOR_COMBINATOR__SUBSEQUENT_SIBLING => {
-                    SelectorCombinator::SubsequentSibling(next)
-                }
-                SelectorRule::SELECTOR_COMBINATOR__NAMESPACE => SelectorCombinator::Namespace(next),
-                SelectorRule::SELECTOR_COMBINATOR__DESCENDENT => {
-                    SelectorCombinator::Descendent(next)
+                SelectorRule::SELECTOR_COMBINATOR__NAMESPACE => {
+                    let namespace_token = complex_expector.pop_front().unwrap();
+                    let node =
+                        SelectorNodeType::Namespace(namespace_token.get_source().to_string());
+                    rest.last_mut().unwrap().get_node().push(node);
                 }
 
                 _ => unreachable!(),
-            };
-
-            rest.push(combinator);
+            }
         }
 
         Ok((first, rest))
@@ -152,60 +194,45 @@ impl<'a> SelectorTokenTracker<'a> {
             return self.fail_type(SelectorRule::SELECTOR_COMPOUND);
         }
 
-        let mut selector = SelectorNode::default();
-
         let compound_expector = Self::new(token).unwrap();
+        let mut node = SelectorNode::default();
 
-        while !compound_expector.is_empty() {
-            let component = compound_expector.peek().unwrap();
-            match component.get_rule() {
-                SelectorRule::SELECTOR_TYPE => {
-                    let (namespace, name) = compound_expector.expect_type()?;
-                    selector.namespace = namespace.map(|x| x.to_string());
-                    if name.is_none() {
-                        selector.universal = true;
-                    }
-                    selector.type_name = name.map(|x| x.to_string());
+        if let Ok((namespace_opt, type_name_opt)) = compound_expector.expect_type() {
+            if namespace_opt.is_none() && type_name_opt.is_none() {
+                node.push(SelectorNodeType::Universal);
+            } else {
+                if let Some(namespace) = namespace_opt {
+                    node.push(SelectorNodeType::Namespace(namespace.to_string()));
                 }
-                SelectorRule::SELECTOR_SUBCLASS => {
-                    let subclass = compound_expector.expect_subclass()?;
-                    match subclass {
-                        SelectorSubclassType::Id(id) => {
-                            assert!(
-                                selector.id.is_none(),
-                                "A simple selector cannot have more than one id selector!"
-                            );
-                            selector.id = Some(id);
-                        }
-                        SelectorSubclassType::Class(class) => {
-                            selector.classes.push(class);
-                        }
-                        SelectorSubclassType::Attribute {
-                            name,
-                            attr_matcher,
-                            sens,
-                        } => {
-                            if !selector.attributes.contains_key(&name) {
-                                selector.attributes.insert(name.clone(), Vec::new());
-                            }
-                            selector
-                                .attributes
-                                .get_mut(&name)
-                                .unwrap()
-                                .push((attr_matcher, sens))
-                        }
-                        SelectorSubclassType::PseudoClass => todo!(),
-                        SelectorSubclassType::PseudoElement => todo!(),
-                    }
+                if let Some(type_name) = type_name_opt {
+                    node.push(SelectorNodeType::TypeName(type_name.to_string()));
                 }
-                SelectorRule::SELECTOR_PSEUDOCLASS => todo!(),
-                SelectorRule::SELECTOR_PSEUDOELEMENT => todo!(),
-
-                _ => (),
             }
         }
 
-        Ok(selector)
+        while let Ok(subclass) = compound_expector.expect_subclass() {
+            match subclass {
+                SelectorSubclassType::Id(id) => node.push(SelectorNodeType::Id(id)),
+                SelectorSubclassType::Class(class) => node.push(SelectorNodeType::Class(class)),
+                SelectorSubclassType::Attribute {
+                    name,
+                    attr_matcher,
+                    case_sensitive,
+                } => node.push(SelectorNodeType::Attribute {
+                    name,
+                    attr_matcher,
+                    case_sensitive,
+                }),
+                SelectorSubclassType::PseudoClass(psclass) => {
+                    node.push(SelectorNodeType::PseudoClass(psclass))
+                }
+                SelectorSubclassType::PseudoElement(pselement, params) => {
+                    node.push(SelectorNodeType::PseudoElement(pselement, params))
+                }
+            }
+        }
+
+        Ok(node)
     }
 
     fn expect_subclass(&'a self) -> SelectorResult<SelectorSubclassType> {
@@ -222,26 +249,48 @@ impl<'a> SelectorTokenTracker<'a> {
             SelectorRule::SELECTOR_ID => {
                 let ident = subclass_expector.expect_id()?;
 
-                Ok(SelectorSubclassType::Id(
-                    ident.to_string(),
-                ))
+                Ok(SelectorSubclassType::Id(ident.to_string()))
             }
             SelectorRule::SELECTOR_CLASS => {
                 let ident = subclass_expector.expect_class()?;
 
-                Ok(SelectorSubclassType::Class(
-                    ident.to_string(),
-                ))
+                Ok(SelectorSubclassType::Class(ident.to_string()))
             }
             SelectorRule::SELECTOR_ATTRIBUTE => {
-                let (name, attr_matcher, sens) = subclass_expector.expect_attribute()?;
+                let (name, attr_matcher, case_sensitive) = subclass_expector.expect_attribute()?;
+
                 Ok(SelectorSubclassType::Attribute {
                     name: name.to_string(),
                     attr_matcher,
-                    sens
+                    case_sensitive,
                 })
             }
-            SelectorRule::SELECTOR_PSEUDOCLASS => todo!(),
+            SelectorRule::SELECTOR_PSEUDOCLASS => {
+                let psclass = subclass_expector.expect_pseudoclass()?;
+
+                Ok(SelectorSubclassType::PseudoClass(psclass.to_string()))
+            }
+
+            _ => unreachable!(),
+        }
+    }
+
+    fn expect_pseudoclass(&'a self) -> SelectorResult<SourceSlice> {
+        let token: &SelectorToken = self.pop_front().ok_or(SelectorExpectError::TooFewTokens(
+            "SELECTOR_PSEUDOCLASS".into(),
+        ))?;
+
+        if !matches!(token.get_rule(), SelectorRule::SELECTOR_PSEUDOCLASS) {
+            return self.fail_type(SelectorRule::SELECTOR_PSEUDOCLASS);
+        }
+
+        let psclass_expector = Self::new(token).unwrap();
+        match psclass_expector.peek().unwrap().get_rule() {
+            SelectorRule::IDENT => {
+                let ident = psclass_expector.expect_identifier()?;
+                Ok(ident)
+            }
+            SelectorRule::FUNCTION => todo!("Functions are not currently supported"),
 
             _ => unreachable!(),
         }
@@ -293,9 +342,9 @@ impl<'a> SelectorTokenTracker<'a> {
     }
 
     fn expect_attribute(&'a self) -> SelectorResult<(SourceSlice, SelectorAttributeType, bool)> {
-        let token: &SelectorToken = self
-            .pop_front()
-            .ok_or(SelectorExpectError::TooFewTokens("SELECTOR_ATTRIBUTE".into()))?;
+        let token: &SelectorToken = self.pop_front().ok_or(SelectorExpectError::TooFewTokens(
+            "SELECTOR_ATTRIBUTE".into(),
+        ))?;
 
         if !matches!(token.get_rule(), SelectorRule::SELECTOR_ATTRIBUTE) {
             return self.fail_type(SelectorRule::SELECTOR_ATTRIBUTE);
@@ -304,7 +353,9 @@ impl<'a> SelectorTokenTracker<'a> {
         let attribute_expector = Self::new(token).unwrap();
 
         let attr_name = attribute_expector.expect_identifier()?;
-        let matcher_result = attribute_expector.expect_attr_matcher().unwrap_or(SelectorAttributeType::Present);
+        let matcher_result = attribute_expector
+            .expect_attr_matcher()
+            .unwrap_or(SelectorAttributeType::Present);
         let sens = attribute_expector.expect_attr_modifier().unwrap_or(false);
 
         Ok((attr_name, matcher_result, sens))
@@ -478,76 +529,78 @@ impl<'a> SelectorTokenTracker<'a> {
     }
 }
 
+impl SelectorNode {
+    pub fn from_source(source_info: SourceInfo) -> Result<Box<[Self]>, SelectorExpectError> {
+        let selector_parser_result = parse_source::<SelectorRule, SelectorParser>(
+            source_info.into(),
+            SelectorRule::SELECTOR_LIST,
+        );
+
+        let selector_parser = selector_parser_result.map_err(|err| SelectorExpectError::ParseError(err))?;
+        let selector_expector = SelectorTokenTracker::new(&selector_parser).unwrap();
+
+        Ok(selector_expector.expect_selector_list()?)
+    }
+}
+
+impl std::ops::Deref for SelectorNode {
+    type Target = Vec<SelectorNodeType>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for SelectorNode {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl std::fmt::Display for SelectorNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.universal {
-            write!(f, "*");
-        } else {
-            if let Some(namespace) = &self.namespace {
-                write!(f, "{namespace}:");
-            }
-            if let Some(type_name) = &self.type_name {
-                write!(f, "{type_name}");
-            }
-            if let Some(id) = &self.id {
-                write!(f, "#{id}");
-            }
-        }
+        for node in self.iter() {
+            match node {
+                SelectorNodeType::Universal => write!(f, "*"),
+                SelectorNodeType::Namespace(namespace) => write!(f, "|{namespace}"),
+                SelectorNodeType::TypeName(type_name) => write!(f, "{type_name}"),
+                SelectorNodeType::Id(id) => write!(f, "#{id}"),
+                SelectorNodeType::Class(class) => write!(f, ".{class}"),
+                SelectorNodeType::Attribute {
+                    name,
+                    attr_matcher,
+                    case_sensitive,
+                } => {
+                    write!(f, "[{name}");
+                    match attr_matcher {
+                        SelectorAttributeType::ExactMatch(attr) => write!(f, r#"="{attr}""#),
+                        SelectorAttributeType::ListContains(attr) => write!(f, r#"~="{attr}""#),
+                        SelectorAttributeType::StartsWith(attr) => write!(f, r#"^="{attr}""#),
+                        SelectorAttributeType::StartsWithDashed(attr) => write!(f, r#"|="{attr}""#),
+                        SelectorAttributeType::Endswith(attr) => write!(f, r#"$="{attr}""#),
+                        SelectorAttributeType::RawContains(attr) => write!(f, r#"*="{attr}""#),
 
-        for (attr, ops) in self.attributes.iter() {
-            for (op, sens) in ops.iter() {
-                if !sens {
-                    match op {
-                        SelectorAttributeType::Present => write!(f, r#"[{attr}]"#),
-                        SelectorAttributeType::ExactMatch(val) => {
-                            write!(f, r#"[{attr} = "{val}"]"#)
-                        }
-                        SelectorAttributeType::ListContains(val) => {
-                            write!(f, r#"[{attr} ~= "{val}"]"#)
-                        }
-                        SelectorAttributeType::StartsWith(val) => {
-                            write!(f, r#"[{attr} ^= "{val}"]"#)
-                        }
-                        SelectorAttributeType::StartsWithDashed(val) => {
-                            write!(f, r#"[{attr} |= "{val}"]"#)
-                        }
-                        SelectorAttributeType::Endswith(val) => write!(f, r#"[{attr} $= "{val}"]"#),
-                        SelectorAttributeType::RawContains(val) => {
-                            write!(f, r#"[{attr} *= "{val}"]"#)
-                        }
+                        SelectorAttributeType::Present => Ok(()),
                     };
-                } else {
-                    match op {
-                        SelectorAttributeType::Present => write!(f, r#"[{attr} s]"#),
-                        SelectorAttributeType::ExactMatch(val) => {
-                            write!(f, r#"[{attr} = "{val}" s]"#)
-                        }
-                        SelectorAttributeType::ListContains(val) => {
-                            write!(f, r#"[{attr} ~= "{val}" s]"#)
-                        }
-                        SelectorAttributeType::StartsWith(val) => {
-                            write!(f, r#"[{attr} ^= "{val}" s]"#)
-                        }
-                        SelectorAttributeType::StartsWithDashed(val) => {
-                            write!(f, r#"[{attr} |= "{val}" s]"#)
-                        }
-                        SelectorAttributeType::Endswith(val) => {
-                            write!(f, r#"[{attr} $= "{val}" s]"#)
-                        }
-                        SelectorAttributeType::RawContains(val) => {
-                            write!(f, r#"[{attr} *= "{val}" s]"#)
-                        }
-                    };
+                    write!(f, "]")
                 }
-            }
-        }
-
-        for class in self.classes.iter() {
-            write!(f, ".{class}");
-        }
-
-        for child in self.children.iter() {
-            write!(f, " {child}");
+                SelectorNodeType::NextSibling(sibling) => write!(f, " + {sibling}"),
+                SelectorNodeType::SubsequentSibling(sibling) => write!(f, " ~ {sibling}"),
+                SelectorNodeType::Child(child) => write!(f, " > {child}"),
+                SelectorNodeType::Descendent(descendent) => write!(f, " {descendent}"),
+                SelectorNodeType::PseudoClass(psclass) => write!(f, ":{psclass}"),
+                SelectorNodeType::PseudoElement(pselement, params_opt) => {
+                    write!(f, "::{pselement}");
+                    if let Some(params) = params_opt {
+                        let list: String = params.as_ref().iter()
+                            .map(|x| x.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        write!(f, "({list})");
+                    }
+                    Ok(())
+                },
+            };
         }
 
         Ok(())

@@ -89,6 +89,6 @@ impl CssValue for CssBackgroundColor {
         "CssBackgroundColor"
     }
     fn type_token() -> TokenExpected {
-        TokenExpected::QuotedString | TokenExpected::Ident
+        TokenExpected::QuotedString | TokenExpected::Ident | TokenExpected::Hash
     }
 }
