@@ -47,7 +47,7 @@ use peacock_crest::{SourceInfo, Stylesheet};
 
 let css = "div { color: red; } .example { font-size: 16px; }";
 let source_info = SourceInfo::new(css);
-let stylesheet = SelectorNode::from_source(source_info).expect("Failed to read css");
+let stylesheet = Stylesheet::from_source(source_info).expect("Failed to read css");
 
 println!("Parsed stylesheet:\n{}", stylesheet);
 ```
@@ -66,10 +66,9 @@ Crest currently uses the following to validate Crest's functionality for histori
 ensure compatibility with a range of CSS practices:
 - [X] acid1
 - [X] acid2
-- [X] bootstrap 1
-- [ ] ~~bootstrap 2~~ (bootstrap2 relies on non-compliance with the standard and as such has been skipped in
-tests for historical compliance)
-- [ ] bootstrap 3
+- [ ] ~~bootstrap 1~~ (bootstrap2 relies on non-compliance with the standard and as such has been skipped in tests for historical compliance)
+- [ ] ~~bootstrap 2~~ (bootstrap2 relies on non-compliance with the standard and as such has been skipped in tests for historical compliance)
+- [ ] ~~bootstrap 3~~ (bootstrap2 relies on non-compliance with the standard and as such has been skipped in tests for historical compliance)
 - [ ] bootstrap 4
 - [ ] bootstrap 5
 
@@ -86,6 +85,10 @@ Performance benchmarks are available in the `benchmarks` directory. To run them,
 ```bash
 cargo bench
 ```
+
+Current Results:
+
+<img src="assets/benchmarks.png" alt="performance benchmarks between crest and other css parsers" />
 
 ## Documentation
 
