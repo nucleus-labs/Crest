@@ -349,9 +349,9 @@ impl<'a> CssTokenTracker<'a> {
             return self.fail_type(CssRule::COMPONENT_VALUE);
         }
 
-        let value_expector = Self::new(token).ok_or_else(|| {
-            panic!("Failed to create am expector from '{}'", token.get_source())
-        }).unwrap();
+        let value_expector = Self::new(token)
+            .ok_or_else(|| panic!("Failed to create am expector from '{}'", token.get_source()))
+            .unwrap();
 
         match value_expector.peek().unwrap().get_rule() {
             CssRule::SIMPLE_BLOCK | CssRule::FUNCTION_BLOCK => todo!("component values do not currently support SIMPLE_BLOCK or FUNCTION_BLOCK value types"),
@@ -518,7 +518,7 @@ impl<'a> CssTokenTracker<'a> {
 
         if !function_expector.is_empty() {
             let mut params: Vec<Unit> = Vec::new();
-    
+
             while let Ok(unit) = function_expector.expect_component_value() {
                 params.push(unit);
             }

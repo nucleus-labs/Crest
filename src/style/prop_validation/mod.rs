@@ -90,7 +90,9 @@ pub enum TokenExpected {
 /// CssValue is a standardized interface for css style attribute values. Each css attribute
 /// has its own requirements for value types, so this interface is for allowing defined
 /// attributes to use the type system to declare what they expect, allowing new css attributes
-/// to be added fairly trivially.
+/// to be added fairly trivially. For example, how do we define the allowed value types of the
+/// css property `color`? (color: ??;) We define the associated keyword enum type `KeywordColor`,
+/// and its allowed value types as "<keyword> U <hash> U <quoted-string>"
 pub trait CssValue: Sized + From<Unit> + Into<Unit> {
     type Keyword: std::fmt::Debug + std::fmt::Display + Clone + FromStr;
 
@@ -134,15 +136,15 @@ pub trait CssValue: Sized + From<Unit> + Into<Unit> {
 
         if valid_tokens.intersects(TokenExpected::Percentage) {
             if let Ok(percent) = tracker.expect_percentage() {
-                return Ok(CssAttributeValue::Value(Unit::Percentage(percent.into())))
+                return Ok(CssAttributeValue::Value(Unit::Percentage(percent.into())));
             };
         }
 
         if valid_tokens.intersects(TokenExpected::Hash) {
-            if let Ok(hash) =  tracker.expect_hash() {
+            if let Ok(hash) = tracker.expect_hash() {
                 return Ok(CssAttributeValue::Value(Unit::Hash(
                     hash.to_string().into(),
-                )))
+                )));
             }
         }
 
@@ -151,7 +153,7 @@ pub trait CssValue: Sized + From<Unit> + Into<Unit> {
                 return Ok(CssAttributeValue::Value(Unit::Dimension(dim)));
             };
         }
-        
+
         if let Ok((name, params)) = tracker.expect_function_block() {
             return Ok(CssAttributeValue::Value(Unit::Function {
                 name: name.to_string(),

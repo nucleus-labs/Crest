@@ -1,5 +1,5 @@
-use peacock_crest::syntax::{CssParser, CssRule};
 use peacock_crest::source::parse_source;
+use peacock_crest::syntax::{CssParser, CssRule};
 use peacock_crest::SourceInfo;
 
 #[test]

@@ -1,19 +1,19 @@
 mod pest_selector;
 mod types;
 
-pub use types::{SelectorAttributeType, SelectorCombinator, SelectorResult};
 pub use pest_selector::Rule as SelectorRule;
+pub use types::{SelectorAttributeType, SelectorCombinator, SelectorResult};
 
-pub(crate) use types::{SelectorExpectError, SelectorSubclassType};
 pub(crate) use pest_selector::SelectorParser;
+pub(crate) use types::{SelectorExpectError, SelectorSubclassType};
 
-use std::collections::HashMap;
 use std::cell::Cell;
+use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::boo::Boo;
 use crate::source::{parse_source, ParserToken, SourceInfo, SourceSlice, StackInfo, TokenTracker};
 use crate::syntax::CssToken;
-use crate::boo::Boo;
 use crate::Unit;
 
 pub(crate) type SelectorToken = ParserToken<SelectorRule>;
@@ -21,8 +21,8 @@ pub(crate) type SelectorStackInfo = StackInfo<SelectorRule>;
 
 #[derive(Debug, Clone)]
 pub enum SelectorNodeType {
-    Universal,
     Namespace(String),
+    Universal,
     TypeName(String),
     Id(String),
     Class(String),
@@ -536,7 +536,8 @@ impl SelectorNode {
             SelectorRule::SELECTOR_LIST,
         );
 
-        let selector_parser = selector_parser_result.map_err(|err| SelectorExpectError::ParseError(err))?;
+        let selector_parser =
+            selector_parser_result.map_err(|err| SelectorExpectError::ParseError(err))?;
         let selector_expector = SelectorTokenTracker::new(&selector_parser).unwrap();
 
         Ok(selector_expector.expect_selector_list()?)
@@ -592,14 +593,16 @@ impl std::fmt::Display for SelectorNode {
                 SelectorNodeType::PseudoElement(pselement, params_opt) => {
                     write!(f, "::{pselement}");
                     if let Some(params) = params_opt {
-                        let list: String = params.as_ref().iter()
+                        let list: String = params
+                            .as_ref()
+                            .iter()
                             .map(|x| x.to_string())
                             .collect::<Vec<_>>()
                             .join(", ");
                         write!(f, "({list})");
                     }
                     Ok(())
-                },
+                }
             };
         }
 

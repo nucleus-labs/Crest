@@ -20,7 +20,7 @@ pub struct AtRule {
     // decl_block: HashMap<String, Vec<CssToken>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Stylesheet {
     pub at_rules: HashMap<String, AtRule>,
     pub style_rules: Vec<(SelectorNode, CssStyleProperties)>,
@@ -47,7 +47,10 @@ impl Stylesheet {
 
 impl<'a> CssStyleValueExpector<'a> {
     pub fn new(declaration_groups_token: &'a CssToken) -> Self {
-        assert_eq!(declaration_groups_token.get_rule(), CssRule::DECLARATION_GROUPS);
+        assert_eq!(
+            declaration_groups_token.get_rule(),
+            CssRule::DECLARATION_GROUPS
+        );
         let mut decl_groups: Vec<&'a CssToken> = declaration_groups_token
             .get_children()
             .unwrap()
@@ -74,7 +77,7 @@ impl<'a> CssStyleValueExpector<'a> {
         if self.has_errored {
             return self;
         }
-        
+
         if self.css_expector.is_empty() {
             if self.decl_groups.is_empty() {
                 self.has_errored = true;
@@ -89,7 +92,7 @@ impl<'a> CssStyleValueExpector<'a> {
                 self.css_expector = CssTokenTracker::new(decl_value).unwrap();
             }
         }
-        
+
         match T::parse(&self.css_expector) {
             Ok(attr_val) => self.results.push(Ok(attr_val.into())),
             Err(err) => {

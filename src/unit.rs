@@ -106,7 +106,7 @@ pub enum Unit {
     Hash(Hash),
 
     #[from]
-    Function{
+    Function {
         name: String,
         required_return_type: TokenExpected,
         params: Vec<Unit>,
@@ -453,8 +453,13 @@ impl std::fmt::Display for Unit {
             Unit::Hash(hash) => write!(f, "#{}", hash.0),
             Unit::Shorthand(val1, val2) => write!(f, "{val1}/{val2}"),
             Unit::UnknownIdent(ident) => write!(f, "{ident}"),
-            Unit::Function { name, required_return_type, params } => {
-                let param_string: String = params.iter()
+            Unit::Function {
+                name,
+                required_return_type,
+                params,
+            } => {
+                let param_string: String = params
+                    .iter()
                     .map(|x| x.to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
