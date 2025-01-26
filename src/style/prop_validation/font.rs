@@ -99,6 +99,6 @@ impl CssValue for CssFontSize {
         "CssFontSize"
     }
     fn type_token() -> TokenExpected {
-        TokenExpected::Dimension | TokenExpected::Ident
+        TokenExpected::Dimension | TokenExpected::Ident | TokenExpected::Percentage
     }
 }

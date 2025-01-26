@@ -52,7 +52,10 @@ impl CssValue for CssWidth {
         "CssWidth"
     }
     fn type_token() -> TokenExpected {
-        TokenExpected::Ident | TokenExpected::Dimension
+        TokenExpected::Ident
+            | TokenExpected::Dimension
+            | TokenExpected::Percentage
+            | TokenExpected::Number
     }
 }
 
@@ -63,6 +66,9 @@ impl CssValue for CssHeight {
         "CssHeight"
     }
     fn type_token() -> TokenExpected {
-        TokenExpected::Ident | TokenExpected::Dimension
+        TokenExpected::Ident
+            | TokenExpected::Dimension
+            | TokenExpected::Percentage
+            | TokenExpected::Number
     }
 }

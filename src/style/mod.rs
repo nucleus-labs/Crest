@@ -1,60 +1,134 @@
-pub mod parse_attr;
+pub mod prop_validation;
 pub mod properties;
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub use properties::CssStyleProperties;
-
 use crate::boo::Boo;
 use crate::error::Error;
 use crate::selector::SelectorNode;
-use crate::source::{parse_source, SourceSlice};
+use crate::source::{parse_source, SourceInfo, SourceSlice};
 use crate::syntax::{CssExpectError, CssParser, CssRule, CssToken, CssTokenTracker};
-use parse_attr::CssStyleAttribute;
 
+pub use prop_validation::{CssAttributeValue, CssStyleAttribute, CssValue};
+pub use properties::CssStyleProperties;
+
+#[derive(Debug, Clone)]
 pub struct AtRule {
     pub(crate) name: String,
     // components: Vec<SourceSlice>,
     // decl_block: HashMap<String, Vec<CssToken>>,
 }
 
-#[derive(Clone, Debug)]
-pub struct CssStyleValueExpector<'a> {
-    css_expector: &'a CssTokenTracker<'a>,
-    has_errored: bool,
-    results: Vec<Result<CssStyleAttribute, CssExpectError>>,
-}
-
+#[derive(Debug, Clone, Default)]
 pub struct Stylesheet {
     pub at_rules: HashMap<String, AtRule>,
     pub style_rules: Vec<(SelectorNode, CssStyleProperties)>,
 }
 
+#[derive(Debug, Clone)]
+pub struct CssStyleValueExpector<'a> {
+    decl_groups: Vec<&'a CssToken>,
+    css_expector: CssTokenTracker<'a>,
+    has_errored: bool,
+    results: Vec<Result<CssStyleAttribute, CssExpectError>>,
+}
+
+impl Stylesheet {
+    pub fn from_source(source: &str) -> Result<Self, Error> {
+        source.parse::<Self>()
+    }
+
+    pub fn from_filepath(filepath: &std::path::Path) -> Result<Self, Error> {
+        let source = std::fs::read_to_string(filepath)?;
+        source.parse::<Self>()
+    }
+}
+
 impl<'a> CssStyleValueExpector<'a> {
-    pub fn new(css_expector: &'a CssTokenTracker) -> Self {
+    pub fn new(declaration_groups_token: &'a CssToken) -> Self {
+        assert_eq!(
+            declaration_groups_token.get_rule(),
+            CssRule::DECLARATION_GROUPS
+        );
+        let mut decl_groups: Vec<&'a CssToken> = declaration_groups_token
+            .get_children()
+            .unwrap()
+            .iter()
+            .collect();
+
+        let decl_group = decl_groups.remove(0);
+        let decl_values = &decl_group.get_children().unwrap()[0];
+        let decl_value = &decl_values.get_children().unwrap()[0];
+        let css_expector = CssTokenTracker::new(decl_value).unwrap();
+
         Self {
+            decl_groups,
             css_expector,
             has_errored: false,
             results: Vec::new(),
         }
     }
 
-    pub fn expect<T: parse_attr::CssValue>(&mut self) -> &mut Self
+    pub fn expect<T: prop_validation::CssValue>(&mut self) -> &mut Self
     where
-        CssStyleAttribute: From<parse_attr::CssAttributeValue<T>>,
+        CssStyleAttribute: From<prop_validation::CssAttributeValue<T>>,
     {
         if self.has_errored {
             return self;
         }
 
-        match T::parse(self.css_expector) {
+        if self.css_expector.is_empty() {
+            if self.decl_groups.is_empty() {
+                self.has_errored = true;
+                self.results.push(Err(CssExpectError::TooFewTokens(
+                    "DECLARATION_VALUES".into(),
+                )));
+                return self;
+            } else {
+                let decl_group = self.decl_groups.remove(0);
+                let decl_values = &decl_group.get_children().unwrap()[0];
+                let decl_value = &decl_values.get_children().unwrap()[0];
+                self.css_expector = CssTokenTracker::new(decl_value).unwrap();
+            }
+        }
+
+        match T::parse(&self.css_expector) {
             Ok(attr_val) => self.results.push(Ok(attr_val.into())),
             Err(err) => {
                 self.has_errored = true;
-                self.results
-                    .push(Err(CssExpectError::InvalidAttributeValue(err)));
+                self.results.push(Err(CssExpectError::InvalidAttributeValue(
+                    self.css_expector.get_location().unwrap().start,
+                    err,
+                )));
             }
+        }
+
+        self
+    }
+
+    pub fn optional<T: prop_validation::CssValue>(&mut self) -> &mut Self
+    where
+        CssStyleAttribute: From<prop_validation::CssAttributeValue<T>>,
+    {
+        if self.has_errored {
+            return self;
+        }
+
+        if self.css_expector.is_empty() {
+            if self.decl_groups.is_empty() {
+                return self;
+            } else {
+                let decl_group = self.decl_groups.remove(0);
+                let decl_values = &decl_group.get_children().unwrap()[0];
+                self.css_expector = CssTokenTracker::new(decl_values).unwrap();
+            }
+        }
+
+        println!("^ {}", self.css_expector.peek().unwrap().get_rule());
+        match T::parse(&self.css_expector) {
+            Ok(attr_val) => self.results.push(Ok(attr_val.into())),
+            Err(err) => (),
         }
 
         self
@@ -79,14 +153,14 @@ impl std::str::FromStr for Stylesheet {
     type Err = Error;
 
     fn from_str(source: &str) -> Result<Self, Self::Err> {
-        match parse_source::<CssRule, CssParser>(source, CssRule::CSS) {
+        match parse_source::<CssRule, CssParser>(SourceInfo::new(source.into()), CssRule::CSS) {
             Ok(css_token) => {
-                let expector = CssTokenTracker::new(&css_token);
+                let expector = CssTokenTracker::new(&css_token).unwrap();
                 assert_eq!(expector.peek().unwrap().get_rule(), CssRule::STYLESHEET);
 
                 let stylesheet = expector.expect_stylesheet()?;
                 Ok(stylesheet)
-            }
+            },
             Err(err) => Err(Error::CssError(err.into())),
         }
     }
@@ -101,7 +175,7 @@ impl std::fmt::Display for AtRule {
 impl std::fmt::Display for Stylesheet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (selector, props) in self.style_rules.iter() {
-            writeln!(f, "{selector} {{\n{props}\n}}\n");
+            writeln!(f, "{selector} {{\n{props}}}\n");
         }
 
         Ok(())

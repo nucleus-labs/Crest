@@ -15,14 +15,19 @@ use peacock_crest as crest;
 // }
 
 fn main() {
-    let css = r#"
-div.main {
-    width: 50px;
-    height: 100px;
-}
-"#;
+    let css = r#"main {}"#;
 
     println!("====================================\n{css}\n====================================");
+    let sheet: crest::style::Stylesheet = css.parse().expect("Failed to parse css");
+    println!("{sheet}\n====================================");
+
+    let css = r#"div.main {
+    width: 50pt;
+    height: 100px;
+    test-prop: auto;
+}"#;
+
+    println!("{css}\n====================================");
     let sheet: crest::style::Stylesheet = css.parse().expect("Failed to parse css");
     println!("{sheet}\n====================================");
 }

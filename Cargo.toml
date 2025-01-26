@@ -1,21 +1,35 @@
 [package]
-name = "peacock-crest"
-version = "0.1.0"
-authors = ["Maxine Alexander <Max.Alexander3721@gmail.com>"]
-edition = "2021"
+    name = "peacock-crest"
+    description = "A CSS library for parsing and applying styles to in-memory DOM structures"
+    version = "0.1.0"
+    authors = ["Maxine Alexander <Max.Alexander3721@gmail.com>"]
+    edition = "2021"
+    readme = "README.md"
+    repository.workspace = true
+    license.workspace = true
+    keywords = ["css", "parser", "dom", "selector", "stylesheet"]
+    categories = ["parsing", "data-structures"]
 
 [dependencies]
-bitmask-enum = "2.2.5"
-derive_more = { version = "1.0.0", features = ["display", "from"] }
-once_cell = "1.20.2"
-pest = "2.7.13"
-pest_derive = "2.7.13"
-strum = "0.26.3"
-strum_macros = "0.26.4"
+    bitmask-enum = "2.2.5"
+    derive_more = { version = "1.0.0", features = ["display", "from"] }
+    once_cell = "1.20.2"
+    pest = "2.7.13"
+    pest_derive = "2.7.13"
+    strum = "0.26.3"
+    strum_macros = "0.26.4"
 
 [dev-dependencies]
-criterion = "0.5.1"
+    criterion = "0.5.1"
 
 [[bench]]
-name = "css"
-harness = false
+    name = "gen"
+    harness = false
+
+[[bench]]
+    name = "acid"
+    harness = false
+
+# [[bench]]
+    # name = "bootstrap"
+    # harness = false

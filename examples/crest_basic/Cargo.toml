@@ -1,0 +1,8 @@
+[package]
+name = "crest_basic"
+version = "0.1.0"
+authors = ["Maxine Alexander <Max.Alexander3721@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+peacock-crest.workspace = true

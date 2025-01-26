@@ -10,6 +10,7 @@ const WHITESPACE_DEFINITIONS: [&str; 6] = [" ", "\t", "\n", "\r\n", "\r", "\x0C"
 
 #[derive(Clone)]
 pub struct SourceInfo {
+    filename: Option<Arc<str>>,
     source: Arc<str>,
     newline_indices: Box<[usize]>,
     handle: OnceCell<Weak<Self>>,
@@ -122,15 +123,15 @@ pub struct TokenTracker<'a, R: RuleType> {
 /// ```rust
 /// fn floored_binary_index(arr: &[usize], item: usize) -> Option<usize> {
 ///     let length = arr.len();
-/// 
+///
 ///     if item < arr[0] || item > arr[length - 1] {
 ///         return None;
 ///     }
-/// 
+///
 ///     let mut left = 0;
 ///     let mut right = length - 1;
 ///     let mut middle = length / 2;
-/// 
+///
 ///     let mut current = arr[middle];
 ///     while left <= right {
 ///         match current.cmp(&item) {
@@ -141,10 +142,10 @@ pub struct TokenTracker<'a, R: RuleType> {
 ///         middle = (right + left) / 2;
 ///         current = arr[middle];
 ///     }
-/// 
+///
 ///     Some(middle)
 /// }
-/// 
+///
 /// assert!(floored_binary_index(&[1, 3, 5, 9, 15], 0).is_none(), "Should fail because 0 is out of the range 0-15");
 /// assert!(floored_binary_index(&[1, 3, 5, 9, 15], 16).is_none(), "Should fail because 16 is out of the range 0-15");
 ///
@@ -204,7 +205,39 @@ impl SourceInfo {
         }
 
         let new = Self {
+            filename: None,
             source: source.into(),
+            newline_indices: newline_indices.into_boxed_slice(),
+            handle: OnceCell::new(),
+        };
+
+        let arc: Arc<Self> = Arc::new(new);
+        arc.handle
+            .set(Arc::downgrade(&arc))
+            .expect("OnceCell should only be initialized once");
+        arc
+    }
+
+    pub fn from_file(filepath: &std::path::Path) -> Arc<Self> {
+        let mut newline_indices = vec![0];
+
+        let source_raw: String =
+            std::fs::read_to_string(filepath).expect(&format!("Failed to read file {filepath:?}"));
+        let source: Arc<str> = source_raw.as_str().into();
+
+        let max_length = NEWLINE_DEFINITIONS.iter().map(|x| x.len()).max().unwrap();
+        for i in 0..(source.len() - 1) {
+            if NEWLINE_DEFINITIONS
+                .iter()
+                .any(|&x| source[i..i + max_length].starts_with(x))
+            {
+                newline_indices.push(i);
+            }
+        }
+
+        let new = Self {
+            filename: Some(Arc::from(filepath.to_string_lossy().into_owned())),
+            source,
             newline_indices: newline_indices.into_boxed_slice(),
             handle: OnceCell::new(),
         };
@@ -390,6 +423,15 @@ impl<'a, R: RuleType> TokenTracker<'a, R> {
         Err(error)
     }
 
+    #[inline]
+    pub(crate) fn get_location(&self) -> Option<SourceSlice> {
+        self.boo
+            .get_ref()
+            .get(self.idx.get())
+            .or_else(|| self.boo.get_ref().get(self.idx.get() - 1))
+            .map(|x| x.get_source())
+    }
+
     /// Consumes the next token and returns a reference to it, or `None` if no tokens remain.
     ///
     /// This increments the internal offset index, marking the token as consumed.
@@ -435,11 +477,10 @@ impl<'a, R: RuleType> TokenTracker<'a, R> {
 }
 
 pub fn parse_source<R: RuleType, P: Parser<R>>(
-    source: &str,
+    source_info: Arc<SourceInfo>,
     rule: R,
 ) -> Result<ParserToken<R>, pest::error::Error<R>> {
-    let source_info: Arc<SourceInfo> = SourceInfo::new(source.into());
-    let pairs = P::parse(rule, source)?;
+    let pairs = P::parse(rule, &source_info.source)?;
 
     let mut tokens = pairs.tokens();
 

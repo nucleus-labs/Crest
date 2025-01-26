@@ -1,6 +1,5 @@
-
-use peacock_crest::source::parse_source;
-use peacock_crest::syntax::{CssRule, CssParser};
+use peacock_crest::source::{parse_source, SourceInfo};
+use peacock_crest::syntax::{CssParser, CssRule};
 
 fn main() {
     let css = r#"
@@ -10,5 +9,6 @@ div.main {
 }
 "#;
 
-    parse_source::<CssRule, CssParser>(css, CssRule::CSS).unwrap();
+    let info = SourceInfo::new(css.into());
+    parse_source::<CssRule, CssParser>(info, CssRule::CSS).unwrap();
 }
