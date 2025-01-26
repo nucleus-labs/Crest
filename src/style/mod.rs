@@ -160,7 +160,7 @@ impl std::str::FromStr for Stylesheet {
 
                 let stylesheet = expector.expect_stylesheet()?;
                 Ok(stylesheet)
-            }
+            },
             Err(err) => Err(Error::CssError(err.into())),
         }
     }

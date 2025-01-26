@@ -14,12 +14,12 @@ fn main() {
         let _ = Stylesheet::from_source(&acid2_selectors).expect("Failed to parse css");
     }
     {
-        println!("{acid1}");
-        let acid = Stylesheet::from_source(&acid1).expect("Failed to parse css");
-        println!("{acid}");
+        // println!("{acid1}");
+        let _acid = Stylesheet::from_source(&acid1).expect("Failed to parse css");
+        // println!("{acid}");
     }
     {
-        let acid = Stylesheet::from_source(&acid2).expect("Failed to parse css");
-        println!("{acid}");
+        let _acid = Stylesheet::from_source(&acid2).expect("Failed to parse css");
+        // println!("{acid}");
     }
 }

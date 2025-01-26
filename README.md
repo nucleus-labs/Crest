@@ -1,7 +1,16 @@
 # Crest
+<!-- TODO: Add a banner image, icons for build results, status on crates.io, etc -->
+
+# Overview
 
 Crest is a Rust library for working with CSS selectors and stylesheets. It provides tools to parse and validate
 CSS syntax, match selectors against custom DOM-like structures, and apply styles programmatically.
+
+## Status
+
+Crest is nearing alpha, and is able to parse any css style rules but unable to parse at-rules. It can also only
+validate a VERY limited subset of the standard style properties, and some [Peacock](#)-specific ones. It's already
+fairly fast, with planned changes to validation that should make it <ins>***much***</ins> faster.
 
 ## Features
 
@@ -9,21 +18,27 @@ CSS syntax, match selectors against custom DOM-like structures, and apply styles
 - **Selector Matching**: Match parsed selectors against types implementing the `DomElement` trait.
 - **Custom DOM Support**: Easily integrate with your own DOM-like structures by implementing the `DomElement` trait.
 
-## Installation
+## Roadmap
+
+- [X] Expand benchmark coverage.
+- [ ] Document simple use cases.
+- [ ] Define the `DomElement` trait.
+- [ ] Add detailed examples for the `DomElement` trait.
+- [ ] Document advanced use cases.
+
+## Quickstart
+
+### Installation
 
 Crest is not yet available on [crates.io](https://crates.io/). To use it, include it as a dependency using a
-Git repository:
+git repository:
 
 ```toml
 [dependencies]
-crest = { git = "https://github.com/nucleus-labs/Crest/", rev = "<revision>" }
+peacock-crest = { git = "https://github.com/nucleus-labs/Crest/", rev = "<rev>" }
 ```
 
-Replace `<revision>` with the URL of the peacock_crest repository.
-
-## Getting Started
-
-### Parsing CSS Selectors
+### Selector Parsing
 
 Crest uses [Pest](https://pest.rs/) to generate parsers for CSS selectors and for the full CSS syntax. Here's
 how you can parse a selector string:
@@ -38,7 +53,7 @@ let parsed_selector = SelectorNode::from_source(source_info).expect("Failed to r
 println!("Parsed selector: {}", parsed_selector);
 ```
 
-### Parsing Full Stylesheets
+### Stylesheet Parsing
 
 You can also parse full CSS stylesheets:
 
@@ -80,7 +95,7 @@ cargo test
 
 ## Benchmarks
 
-Performance benchmarks are available in the `benchmarks` directory. To run them, use:
+Performance benchmarks are available in the `benches` directory. To run them, use:
 
 ```bash
 cargo bench
@@ -89,25 +104,3 @@ cargo bench
 Current Results:
 
 <img src="assets/benchmarks.png" alt="performance benchmarks between crest and other css parsers" />
-
-## Documentation
-
-[Insert link to documentation]
-
-## Contributing
-
-[Insert contribution guidelines]
-
-## License
-
-[Insert license information]
-
----
-
-### TODOs
-
-- [X] Expand benchmark coverage.
-- [ ] Document simple use cases.
-- [ ] Define the `DomElement` trait.
-- [ ] Add detailed examples for the `DomElement` trait.
-- [ ] Document advanced use cases.
