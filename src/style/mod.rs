@@ -4,11 +4,11 @@ pub mod properties;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::boo::Boo;
-use crate::error::Error;
-use crate::selector::SelectorNode;
-use crate::source::{parse_source, SourceInfo, SourceSlice};
 use crate::syntax::{CssExpectError, CssParser, CssRule, CssToken, CssTokenTracker};
+use crate::source::{parse_source, SourceInfo, SourceSlice};
+use crate::selector::SelectorNode;
+use crate::error::Error;
+use crate::boo::Boo;
 
 pub use prop_validation::{CssAttributeValue, CssStyleAttribute, CssValue};
 pub use properties::CssStyleProperties;

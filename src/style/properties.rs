@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
-use super::prop_validation::{self, types, CssAttributeValue, CssStyleAttribute};
+use crate::syntax::{CssExpectError, CssParser, CssRule, CssToken, CssTokenTracker};
+use crate::source::{parse_source, SourceInfo, SourceSlice};
+use crate::error::Error;
 use crate::unit::Unit;
+
+use super::prop_validation::{self, types, CssAttributeValue, CssStyleAttribute};
 
 #[derive(Debug, Clone)]
 pub enum CssStyleProperty {
@@ -102,6 +106,29 @@ impl CssStyleProperty {
             }
 
             _ => todo!("Update structure unknown: {values:?}"),
+        }
+    }
+}
+
+impl CssStyleProperties {
+    pub fn from_source(source: &str) -> Result<Self, Error> {
+        source.parse::<Self>()
+    }
+}
+
+impl std::str::FromStr for CssStyleProperties {
+    type Err = Error;
+
+    fn from_str(source: &str) -> Result<Self, Self::Err> {
+        match parse_source::<CssRule, CssParser>(SourceInfo::new(source.into()), CssRule::DECLARATION_LIST) {
+            Ok(css_token) => {
+                let expector = CssTokenTracker::new(&css_token).unwrap();
+                assert_eq!(expector.peek().unwrap().get_rule(), CssRule::DECLARATION);
+
+                let props = expector.expect_decl_list()?;
+                Ok(props)
+            },
+            Err(err) => Err(Error::CssError(err.into())),
         }
     }
 }

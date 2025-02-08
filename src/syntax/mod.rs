@@ -284,41 +284,54 @@ impl<'a> CssTokenTracker<'a> {
 
         match selector_expector.expect_selector_list() {
             Ok(selectors) => {
-                let mut sheet = crate::style::properties::CssStyleProperties::default();
+                let prop_list_expector = Self::new(&components[1]).unwrap();
 
-                // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION*
-                if let Some(declarations) = components[1].get_children() {
-                    for declaration_token in declarations.iter() {
-                        if !matches!(declaration_token.get_rule(), CssRule::DECLARATION) {
-                            return self.fail_because(CssExpectError::FailedExpectation(
-                                declaration_token.get_rule(),
-                                CssRule::DECLARATION,
-                            ));
-                        }
+                let mut props = prop_list_expector.expect_decl_list()?;
 
-                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION
-                        let decl_components = declaration_token.get_children().unwrap();
-
-                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> IDENT [ source ]
-                        let decl_name = decl_components[0].get_source();
-
-                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> DECLARATION_VALUES
-                        let decl_values =
-                            Self::parse_style_attr(decl_name, &decl_components[1]).unwrap();
-
-                        // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION -> IMPORTANT
-                        let important = decl_components.len() > 2;
-
-                        sheet.push((
-                            CssStyleProperty::from_attribute_values(decl_values),
-                            important,
-                        ));
-                    }
-                }
-                Ok((selectors, sheet))
-            }
+                Ok((selectors, props))
+            },
             Err(selector_err) => self.fail_because(CssExpectError::InvalidSelector(selector_err)),
         }
+    }
+
+    pub fn expect_decl_list(&'a self) -> CssResult<CssStyleProperties> {
+        let token: &CssToken = self
+            .pop_front()
+            .ok_or(CssExpectError::TooFewTokens("DECLARATION_LIST".into()))?;
+
+        let mut props = crate::style::properties::CssStyleProperties::default();
+
+        while let Some(declaration_token) = self.pop_front() {
+            if !matches!(declaration_token.get_rule(), CssRule::DECLARATION_LIST) {
+                return self.fail_because(CssExpectError::FailedExpectation(
+                    declaration_token.get_rule(),
+                    CssRule::DECLARATION_LIST,
+                ));
+            }
+
+            // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION_LIST
+            let decl_list = &declaration_token.get_children().unwrap()[0];
+
+            // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION_LIST -> DECLARATION*
+            let decl_components = decl_list.get_children().unwrap();
+
+            // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION_LIST -> DECLARATION -> IDENT [ source ]
+            let decl_name = decl_components[0].get_source();
+
+            // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION_LIST -> DECLARATION -> DECLARATION_VALUES
+            let decl_values =
+                Self::parse_style_attr(decl_name, &decl_components[1]).unwrap();
+
+            // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION_LIST -> DECLARATION -> IMPORTANT
+            let important = decl_components.len() > 2;
+
+            props.push((
+                CssStyleProperty::from_attribute_values(decl_values),
+                important,
+            ));
+        }
+
+        Ok(props)
     }
 
     pub fn expect_component_values(&'a self) -> CssResult<Vec<Unit>> {

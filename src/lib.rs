@@ -24,7 +24,7 @@ pub type MatchResult = Option<()>;
 /// The generic implementation for document nodes.
 ///
 /// Used for selector matching and applying style properties
-pub trait DomElement: Sized {
+pub trait DomElement {
     // required functions
 
     // /// the element's namespace
@@ -41,7 +41,7 @@ pub trait DomElement: Sized {
     // fn get_children(&self) -> Box<[Arc<RwLock<Self>>]>;
 
     /// <button style="color: red;" />
-    fn get_inline_style(&self) -> &style::CssStyleProperties;
+    fn get_inline_style(&self) -> style::CssStyleProperties;
 
     /// This is for applying style properties to the current node immediately
     fn apply_style_properties(&mut self);
