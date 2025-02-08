@@ -15,7 +15,7 @@ fn token_gen() {
 #[test]
 fn basic() {
     let css = "* { font: 10px/1 Verdana, sans-serif; margin: 1.5em; border: .5em solid black; padding: 0; width: 48em; background-color: white; }";
-    css.parse::<Stylesheet>().unwrap(); 
+    css.parse::<Stylesheet>().unwrap();
 }
 
 #[test]
@@ -29,7 +29,6 @@ fn declarations() {
     let decl = "padding: 0; width: 48em; background-color: white;";
     let props: CssStyleProperties = decl.parse().unwrap();
     for (prop, _) in props.0.iter() {
-        println!("-> {prop:?}");
         match prop {
             peacock_crest::style::properties::CssStyleProperty::BackgroundColor(css_attribute_value)
                 => assert!(matches!(css_attribute_value, CssAttributeValue::<CssBackgroundColor>::Keyword(<CssBackgroundColor as CssValue>::Keyword::White))),
@@ -45,6 +44,37 @@ fn declarations() {
                 assert!(matches!(css_attribute_value1, CssAttributeValue::<CssPadding>::Value(Unit::Number(0f32))));
                 assert!(matches!(css_attribute_value2, CssAttributeValue::<CssPadding>::Value(Unit::Number(0f32))));
                 assert!(matches!(css_attribute_value3, CssAttributeValue::<CssPadding>::Value(Unit::Number(0f32))));
+            },
+            _ => (),
+        }
+    }
+}
+
+#[test]
+fn prop_eval() {
+    let decl = "padding: 0; width: 48em; background-color: white; width: 56px; padding: 5px;";
+    let props: CssStyleProperties = decl.parse().unwrap();
+
+    let prop_names = props.iter()
+        .map(|prop| prop.0.get_prop_name())
+        .collect::<Vec<String>>();
+
+    for prop_name in prop_names.iter() {
+        match props.eval_prop(prop_name).unwrap() {
+            peacock_crest::style::properties::CssStyleProperty::BackgroundColor(css_attribute_value)
+                => assert!(matches!(css_attribute_value, CssAttributeValue::<CssBackgroundColor>::Keyword(<CssBackgroundColor as CssValue>::Keyword::White))),
+            peacock_crest::style::properties::CssStyleProperty::Width(css_attribute_value)
+                => assert!(matches!(css_attribute_value, CssAttributeValue::<CssWidth>::Value(Unit::Dimension(Dimension::Length(Length::Px(56f32)))))),
+            peacock_crest::style::properties::CssStyleProperty::Padding(
+                css_attribute_value,
+                css_attribute_value1,
+                css_attribute_value2,
+                css_attribute_value3
+            ) => {
+                assert!(matches!(css_attribute_value, CssAttributeValue::<CssPadding>::Value(Unit::Dimension(Dimension::Length(Length::Px(5f32))))));
+                assert!(matches!(css_attribute_value1, CssAttributeValue::<CssPadding>::Value(Unit::Dimension(Dimension::Length(Length::Px(5f32))))));
+                assert!(matches!(css_attribute_value2, CssAttributeValue::<CssPadding>::Value(Unit::Dimension(Dimension::Length(Length::Px(5f32))))));
+                assert!(matches!(css_attribute_value3, CssAttributeValue::<CssPadding>::Value(Unit::Dimension(Dimension::Length(Length::Px(5f32))))));
             },
             _ => (),
         }

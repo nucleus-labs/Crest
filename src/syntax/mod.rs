@@ -284,9 +284,14 @@ impl<'a> CssTokenTracker<'a> {
 
         match selector_expector.expect_selector_list() {
             Ok(selectors) => {
-                let prop_list_expector = Self::new(&components[1]).unwrap();
+                let decl_block = &components[1];
+                let decl_list = &decl_block.get_children().unwrap()[0];
 
-                let mut props = prop_list_expector.expect_decl_list()?;
+                let mut props: CssStyleProperties = if let Some(prop_list_expector) = Self::new(decl_list) {
+                    prop_list_expector.expect_decl_list()?
+                } else {
+                    Default::default()
+                };
 
                 Ok((selectors, props))
             },
@@ -295,25 +300,18 @@ impl<'a> CssTokenTracker<'a> {
     }
 
     pub fn expect_decl_list(&'a self) -> CssResult<CssStyleProperties> {
-        let token: &CssToken = self
-            .pop_front()
-            .ok_or(CssExpectError::TooFewTokens("DECLARATION_LIST".into()))?;
-
-        let mut props = crate::style::properties::CssStyleProperties::default();
+        let mut props = CssStyleProperties::default();
 
         while let Some(declaration_token) = self.pop_front() {
-            if !matches!(declaration_token.get_rule(), CssRule::DECLARATION_LIST) {
+            if !matches!(declaration_token.get_rule(), CssRule::DECLARATION) {
                 return self.fail_because(CssExpectError::FailedExpectation(
                     declaration_token.get_rule(),
-                    CssRule::DECLARATION_LIST,
+                    CssRule::DECLARATION,
                 ));
             }
 
-            // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION_LIST
-            let decl_list = &declaration_token.get_children().unwrap()[0];
-
             // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION_LIST -> DECLARATION*
-            let decl_components = decl_list.get_children().unwrap();
+            let decl_components = declaration_token.get_children().unwrap();
 
             // QUALIFIED_RULE -> DECL_BLOCK -> DECLARATION_LIST -> DECLARATION -> IDENT [ source ]
             let decl_name = decl_components[0].get_source();

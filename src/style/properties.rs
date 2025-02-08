@@ -108,6 +108,31 @@ impl CssStyleProperty {
             _ => todo!("Update structure unknown: {values:?}"),
         }
     }
+
+    pub fn get_prop_name(&self) -> String {
+        match self {
+            CssStyleProperty::Color(_) => "color".into(),
+            CssStyleProperty::BackgroundColor(_) => "background-color".into(),
+            CssStyleProperty::Width(_) => "width".into(),
+            CssStyleProperty::Height(_) => "height".into(),
+            CssStyleProperty::Padding(_, _, _, _) => "padding".into(),
+            CssStyleProperty::Spacing(_, _, _, _) => "spacing".into(),
+            CssStyleProperty::FontFamily(_) => "font-family".into(),
+            CssStyleProperty::FontSize(_) => "font-size".into(),
+            CssStyleProperty::LineHeight(_) => "line-height".into(),
+            CssStyleProperty::WordBreak(_) => "word-break".into(),
+            CssStyleProperty::MaxWidth(_) => "max-width".into(),
+            CssStyleProperty::MaxHeight(_) => "max-height".into(),
+            CssStyleProperty::JustifyContent(_) => "justify-content".into(),
+            CssStyleProperty::VerticalAlign(_) => "vertical-align".into(),
+            CssStyleProperty::OverflowX(_) => "overflow-x".into(),
+            CssStyleProperty::OverflowY(_) => "overflow-y".into(),
+            CssStyleProperty::ObjectFit(_) => "object-fit".into(),
+            CssStyleProperty::ImageRendering(_) => "image-rendering".into(),
+            CssStyleProperty::Opacity(_) => "opacity".into(),
+            CssStyleProperty::UnknownProperty(prop, _) => prop.clone(),
+        }
+    }
 }
 
 impl CssStyleProperties {
@@ -123,9 +148,8 @@ impl std::str::FromStr for CssStyleProperties {
         match parse_source::<CssRule, CssParser>(SourceInfo::new(source.into()), CssRule::DECLARATION_LIST) {
             Ok(css_token) => {
                 let expector = CssTokenTracker::new(&css_token).unwrap();
-                assert_eq!(expector.peek().unwrap().get_rule(), CssRule::DECLARATION);
-
                 let props = expector.expect_decl_list()?;
+                
                 Ok(props)
             },
             Err(err) => Err(Error::CssError(err.into())),
@@ -215,5 +239,19 @@ impl std::fmt::Display for CssStyleProperties {
         }
 
         Ok(())
+    }
+}
+
+impl CssStyleProperties {
+    pub fn eval_prop(&self, prop_name: &str) -> Option<CssStyleProperty> {
+        let mut result: Option<CssStyleProperty> = None;
+
+        for (prop, important) in self.0.iter() {
+            if prop_name.eq_ignore_ascii_case(&prop.get_prop_name()) {
+                result = Some(prop.clone());
+            }
+        }
+
+        result
     }
 }

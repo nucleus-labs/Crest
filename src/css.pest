@@ -15,7 +15,7 @@ SELECTOR_REPR = _{ (SELECTOR_COMBINATORS | SIMPLE_BLOCK | FUNCTION_BLOCK | PRESE
 COMPONENT_VALUE_LIST = { (COMPONENT_VALUE ~ WS*)+ }
 // COMPONENT_VALUE_LIST = { (COMPONENT_VALUE ~ WS* ~ "," ~ WS*)+ }
 
-DECLARATION_LIST = { ( (DECLARATION ~ WS* ~ ";") | AT_RULE | QUALIFIED_RULE ) ~ WS* }
+DECLARATION_LIST = { ( ( (DECLARATION ~ WS* ~ ";") | AT_RULE | QUALIFIED_RULE ) ~ WS* )* }
 
 /// BEGIN CSS PARSER RULES SPEC
 
@@ -36,10 +36,7 @@ QUALIFIED_RULE = { WS* ~ SELECTOR ~ WS* ~ DECL_BLOCK }
 // https://drafts.csswg.org/css-syntax/#declaration-list-diagram
 // DEVIATION: PEDANTIC
 // REASON: uses short-hand
-DECL_BLOCK = { "{" ~ WS* ~ (
-        DECLARATION_LIST
-    )* ~ WS* ~ "}"
-}
+DECL_BLOCK = { "{" ~ WS* ~ DECLARATION_LIST ~ WS* ~ "}" }
 
 // https://drafts.csswg.org/css-syntax/#declaration-diagram
 // UNCOMPLIANT
